@@ -1,6 +1,9 @@
+import os
 import telebot
 import requests
 import json
+from flask import Flask
+from threading import Thread
 
 # আপনার Task Zone টেলিগ্রাম বোটের টোকেন
 TOKEN = '8681169433:AAFtdmBgqZmnZjFFfzj5eioAy-OzeGhZSwQ'
@@ -8,6 +11,21 @@ bot = telebot.TeleBot(TOKEN)
 
 # আপনার ফায়ারবেস রিয়েলটাইম ডাটাবেজ URL
 FIREBASE_URL = "https://taskzone365-default-rtdb.firebaseio.com/"
+
+# রেন্ডার পোর্টের প্রয়োজনীয়তা পূরণের জন্য ফ্লাস্ক সার্ভার
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Task Zone Bot is running live!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run_flask)
+    t.start()
 
 # স্টার্ট কমান্ড হ্যান্ডলার (ইউজার রেজিস্ট্রেশন)
 @bot.message_handler(commands=['start'])
@@ -74,5 +92,7 @@ def handle_media(message):
 
 # বোট রান করার জন্য
 if __name__ == '__main__':
+    # ফ্লাস্ক সার্ভার ব্যাকগ্রাউন্ডে চালু করা যাতে রেন্ডার পোর্ট ওপেন পায়
+    keep_alive()
     print("Task Zone Bot is running successfully...")
     bot.infinity_polling()
