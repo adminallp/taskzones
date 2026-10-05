@@ -34,7 +34,8 @@ def register_handlers(bot, FIREBASE_URL):
                 'referral_balance': 0.0,
                 'referred_by': referred_by,
                 'team_members': [],
-                'strike': 0
+                'strike': 0,
+                'selected_category': None
             }
             requests.put(user_url, json=user_data)
             
@@ -58,15 +59,16 @@ def register_handlers(bot, FIREBASE_URL):
     def show_main_menu(bot, chat_id):
         markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
         markup.add(
-            telebot.types.KeyboardButton("📋 উপলব্ধ কাজসমূহ"),
-            telebot.types.KeyboardButton("💰 আমার ব্যালেন্স"),
-            telebot.types.KeyboardButton("👤 প্রোফাইল ও টিম"),
-            telebot.types.KeyboardButton("🔗 রেফারেল লিংক")
+            telebot.types.KeyboardButton("💼 চলমান প্রজেক্টসমূহ"),
+            telebot.types.KeyboardButton("🚀 প্রুফ সাবমিট করুন"),
+            telebot.types.KeyboardButton("💰 আমার আর্নিংস"),
+            telebot.types.KeyboardButton("👤 পারসোনাল ড্যাশবোর্ড"),
+            telebot.types.KeyboardButton("🔗 ইনভাইট লিংক")
         )
-        bot.send_message(chat_id, "নিচের মেনু থেকে আপনার প্রয়োজনীয় অপশনটি বেছে নিন:", reply_markup=markup)
+        bot.send_message(chat_id, "✨ নিচের প্রিমিয়াম অপশনগুলো থেকে আপনার প্রয়োজনীয় কাজটি বেছে নিন:", reply_markup=markup)
 
-    # ২. মেনু অপশন হ্যান্ডলার
-    @bot.message_handler(func=lambda message: message.text in ["📋 উপলব্ধ কাজসমূহ", "💰 আমার ব্যালেন্স", "👤 প্রোফাইল ও টিম", "🔗 রেফারেল লিংক"])
+    # ২. মেনু অপশন হ্যান্ডলার (ইউনিক নাম সহ)
+    @bot.message_handler(func=lambda message: message.text in ["💼 চলমান প্রজেক্টসমূহ", "🚀 প্রুফ সাবমিট করুন", "💰 আমার আর্নিংস", "👤 পারসোনাল ড্যাশবোর্ড", "🔗 ইনভাইট লিংক"])
     def handle_menu_options(message):
         user_id = message.from_user.id
         text = message.text
@@ -78,32 +80,44 @@ def register_handlers(bot, FIREBASE_URL):
             bot.reply_to(message, "⚠️ প্রথমে /start কমান্ড দিয়ে রেজিস্ট্রেশন সম্পন্ন করুন!")
             return
 
-        if text == "📋 উপলব্ধ কাজসমূহ":
+        if text == "💼 চলমান প্রজেক্টসমূহ":
             task_text = (
-                "🎯 **বর্তমান কাজসমূহ:**\n\n"
-                "1️⃣ **ভিডিও মেকিং:** ৩০-৪০ সেকেন্ডের শর্ট ভিডিও\n"
-                "2️⃣ **ভয়েস ওভার:** ভালো কন্ঠস্বরে ভয়েস প্রদান\n"
-                "3️⃣ **সোশ্যাল শেয়ারিং:** ফেসবুকে লিংক শেয়ার\n\n"
-                "💡 **নিয়ম:** কাজ সম্পন্ন করে তার প্রমাণ (স্ক্রিনশট বা ফাইল) সরাসরি এই বোটে পাঠান। একই প্রুফ বারবার পাঠালে স্ট্রাইক খাওয়া হবে!"
+                "🎯 **লাইভ প্রজেক্ট ও টাস্ক ক্যাটাগরি:**\n\n"
+                "1️⃣ **ভিডিও প্রোমোশন:** সোশ্যাল মিডিয়ায় শর্ট ভিডিও মেকিং ও আপলোড\n"
+                "2️⃣ **সোশ্যাল শেয়ারিং:** ফেসবুক বা অন্যান্য প্ল্যাটফর্মে পোস্ট শেয়ারিং\n"
+                "3️⃣ **ভয়েস ওভার / অডিও:** প্রফেশনাল ভয়েস রেকর্ডিং সাবমিট\n"
+                "4️⃣ **গ্রাফিক্স ডিজাইন:** ব্যানার বা ইমেজ ডিজাইন প্রুফ\n\n"
+                "💡 কাজ জমা দিতে চাইলে নিচের **'🚀 প্রুফ সাবমিট করুন'** অপশনে ক্লিক করুন।"
             )
             bot.reply_to(message, task_text, parse_mode="Markdown")
             
-        elif text == "💰 আমার ব্যালেন্স":
+        elif text == "🚀 প্রুফ সাবমিট করুন":
+            # ক্যাটাগরি সিলেক্ট করার জন্য ইনলাইন বাটন তৈরি
+            markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+            markup.add(
+                telebot.types.InlineKeyboardButton("📸 ফেসবুক স্ক্রিনশট", callback_data="cat_facebook"),
+                telebot.types.InlineKeyboardButton("🎥 ভিডিও মেকিং প্রুফ", callback_data="cat_video"),
+                telebot.types.InlineKeyboardButton("🎙️ ভয়েস ওভার অডিও", callback_data="cat_voice"),
+                telebot.types.InlineKeyboardButton("🎨 ডিজাইন / অন্যান্য ফাইল", callback_data="cat_design")
+            )
+            bot.reply_to(message, "📂 আপনি কোন ক্যাটাগরির কাজ জমা দিতে চান? নিচের বাটন থেকে সঠিক ক্যাটাগরি সিলেক্ট করুন:", reply_markup=markup)
+            
+        elif text == "💰 আমার আর্নিংস":
             t_bal = float(user_data.get('task_balance', 0.0))
             r_bal = float(user_data.get('referral_balance', 0.0))
             total_bal = t_bal + r_bal
             strike_count = user_data.get('strike', 0)
             
             bal_text = (
-                f"💳 **আপনার অ্যাকাউন্ট ব্যালেন্স:**\n\n"
-                f"🛠️ কাজের ব্যালেন্স: ৳{t_bal}\n"
-                f"🎁 রেফারেল ব্যালেন্স: ৳{r_bal}\n"
-                f"💵 **মোট ব্যালেন্স:** ৳{total_bal}\n"
-                f"⚠️ **স্ট্রাইক/ওয়ার্নিং:** {strike_count} টি"
+                f"💳 **আপনার ব্যালেন্স সামারি:**\n\n"
+                f"🛠️ প্রজেক্ট ব্যালেন্স: ৳{t_bal}\n"
+                f"🎁 রেফারেল বোনাস: ৳{r_bal}\n"
+                f"💵 **মোট ক্যাশ:** ৳{total_bal}\n"
+                f"⚠️ **স্ট্রাইক স্ট্যাটাস:** {strike_count} টি"
             )
             bot.reply_to(message, bal_text, parse_mode="Markdown")
                 
-        elif text == "👤 প্রোফাইল ও টিম":
+        elif text == "👤 পারসোনাল ড্যাশবোর্ড":
             name = user_data.get('first_name', 'User')
             t_bal = float(user_data.get('task_balance', 0.0))
             r_bal = float(user_data.get('referral_balance', 0.0))
@@ -111,25 +125,49 @@ def register_handlers(bot, FIREBASE_URL):
             strike_count = user_data.get('strike', 0)
             
             profile_text = (
-                f"👤 **ইউজার প্রোফাইল**\n\n"
+                f"👤 **ইউজার ড্যাশবোর্ড**\n\n"
                 f"🏷️ নাম: {name}\n"
                 f"🆔 আইডি: `{user_id}`\n"
-                f"🛠️ কাজের ব্যালেন্স: ৳{t_bal}\n"
+                f"🛠️ প্রজেক্ট ব্যালেন্স: ৳{t_bal}\n"
                 f"🎁 রেফারেল ব্যালেন্স: ৳{r_bal}\n"
                 f"👥 মোট টিম মেম্বার: {len(team)} জন\n"
                 f"⚠️ স্ট্রাইক: {strike_count} টি"
             )
             bot.reply_to(message, profile_text, parse_mode="Markdown")
                 
-        elif text == "🔗 রেফারেল লিংক":
+        elif text == "🔗 ইনভাইট লিংক":
             ref_link = f"https://t.me/{bot.get_me().username}?start={user_id}"
             ref_msg = (
-                f"🔗 **আপনার রেফারেল লিংক:**\n`{ref_link}`\n\n"
-                "এই লিংকটি শেয়ার করুন। এর মাধ্যমে নতুন ইউজার জয়েন করলে আপনার রেফারেল ব্যালেন্স যোগ হবে!"
+                f"🔗 **আপনার পারসোনাল ইনভাইট লিংক:**\n`{ref_link}`\n\n"
+                "এই লিংকটি শেয়ার করুন। এর মাধ্যমে নতুন মেম্বার জয়েন করলে আপনার অ্যাকাউন্টে বোনাস যোগ হবে!"
             )
             bot.reply_to(message, ref_msg, parse_mode="Markdown")
 
-    # ৩. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (ডুপ্লিকেট চেক, স্ট্রাইক সিস্টেম ও স্টার রেটিং সহ)
+    # ৩. কাজের ক্যাটাগরি সিলেকশন হ্যান্ডলার (ইনলাইন বাটন)
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
+    def handle_category_selection(call):
+        user_id = call.from_user.id
+        category_map = {
+            "cat_facebook": "📸 ফেসবুক স্ক্রিনশট",
+            "cat_video": "🎥 ভিডিও মেকিং প্রুফ",
+            "cat_voice": "🎙️ ভয়েস ওভার অادیো",
+            "cat_design": "🎨 ডিজাইন / অন্যান্য ফাইল"
+        }
+        selected_cat = category_map.get(call.data, "সাধারণ প্রুফ")
+        
+        # ইউজারের সিলেক্ট করা ক্যাটাগরি ডাটাবেজে সাময়িকভাবে সেভ করে রাখা
+        user_url = f"{FIREBASE_URL}/users/{user_id}.json"
+        requests.patch(user_url, json={'selected_category': selected_cat})
+        
+        bot.answer_callback_query(call.id, f"✅ সিলেক্ট করা হয়েছে: {selected_cat}")
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=f"✅ আপনি সিলেক্ট করেছেন: **{selected_cat}**\n\nএখন আপনার প্রুফ বা ফাইলটি সরাসরি এই বোটে পাঠিয়ে দিন।",
+            parse_mode="Markdown"
+        )
+
+    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (ক্যাটাগরি সহ, ডুপ্লিকেট চেক ও স্ট্রাইক সিস্টেম)
     @bot.message_handler(content_types=['photo', 'voice', 'audio', 'document'])
     def handle_media(message):
         user_id = message.from_user.id
@@ -137,7 +175,13 @@ def register_handlers(bot, FIREBASE_URL):
         user_data = requests.get(user_url).json()
         
         if not user_data:
-            bot.reply_to(message, "⚠ কাজ জমা দেওয়ার আগে দয়া করে /start লিখে রেজিস্ট্রেশন করুন।")
+            bot.reply_to(message, "⚠ প্রুফ জমা দেওয়ার আগে দয়া করে /start লিখে রেজিস্ট্রেশন করুন।")
+            return
+
+        # ইউজারের সিলেক্ট করা ক্যাটাগরি চেক করা
+        selected_category = user_data.get('selected_category')
+        if not selected_category:
+            bot.reply_to(message, "⚠️ দয়া করে প্রথমে মেনু থেকে **'🚀 প্রুফ সাবমিট করুন'** এ গিয়ে কাজের ক্যাটাগরি সিলেক্ট করুন!")
             return
 
         file_id = None
@@ -158,7 +202,7 @@ def register_handlers(bot, FIREBASE_URL):
 
         # ডুপ্লিকেট সাবমিশন বা স্প্যাম চেক করা
         submissions_url = f"{FIREBASE_URL}/submissions/{user_id}.json"
-        existing_subs = requests.get(submissions_url).json() or {}
+        existing_subs = requests.get(submissions_url).json() {}
         
         is_duplicate = False
         for sub_key, sub_val in existing_subs.items():
@@ -173,10 +217,11 @@ def register_handlers(bot, FIREBASE_URL):
             bot.reply_to(message, f"❌ **সতর্কবার্তা!** আপনি এই একই প্রমাণ বা ফাইল ইতিপূর্বেও জমা দিয়েছেন। ডুপ্লিকেট প্রুফ জমা দেওয়ার কারণে আপনাকে একটি **স্ট্রাইক ({current_strikes})** দেওয়া হলো।", parse_mode="Markdown")
             return
 
-        # নতুন সাবমিশন সেভ করা
+        # নতুন সাবমিশন সেভ করা এবং ক্যাটাগরি রিসেট করা
         new_sub_data = {
             'file_id': file_id,
             'file_type': file_type,
+            'category': selected_category,
             'status': 'approved'
         }
         requests.post(submissions_url, json=new_sub_data)
@@ -184,11 +229,11 @@ def register_handlers(bot, FIREBASE_URL):
         # ইউজারের কাজের ব্যালেন্স বাড়িয়ে দেওয়া (প্রতি টাস্কে ৳১০)
         current_task_bal = float(user_data.get('task_balance', 0.0))
         new_task_bal = current_task_bal + 10.0
-        requests.patch(user_url, json={'task_balance': new_task_bal})
+        requests.patch(user_url, json={'task_balance': new_task_bal, 'selected_category': None})
         
-        bot.reply_to(message, f"✅ আপনার {file_type} সফলভাবে জমা হয়েছে! টাস্ক সম্পন্ন হওয়ায় আপনার অ্যাকাউন্টে **৳১০** যোগ করা হয়েছে।", parse_mode="Markdown")
+        bot.reply_to(message, f"✅ আপনার প্রুফ সফলভাবে জমা হয়েছে! ক্যাটাগরি: **{selected_category}**। টাস্ক সম্পন্ন হওয়ায় আপনার অ্যাকাউন্টে **৳১০** যোগ করা হয়েছে।", parse_mode="Markdown")
 
-        # ৪. চ্যানেলে প্রুফ ফরোয়ার্ড করা এবং ১-৫ স্টার রেটিং বাটন যুক্ত করা
+        # ৫. চ্যানেলে প্রুফ ফরোয়ার্ড করা এবং ১-৫ স্টার রেটিং বাটন যুক্ত করা
         try:
             markup = telebot.types.InlineKeyboardMarkup(row_width=5)
             markup.add(
@@ -200,10 +245,11 @@ def register_handlers(bot, FIREBASE_URL):
             )
             
             caption = (
-                f"📥 **নতুন টাস্ক প্রুফ ও রেটিং:**\n\n"
+                f"📥 **নতুন টাস্ক প্রুফ সাবমিশন:**\n\n"
                 f"👤 নাম: {user_data.get('first_name')}\n"
                 f"🆔 আইডি: `{user_id}`\n"
-                f"📂 ফাইলের ধরণ: {file_type}\n"
+                f"📂 ক্যাটাগরি: {selected_category}\n"
+                f"📁 ফাইলের ধরণ: {file_type}\n"
                 f"⭐ স্টার রেটিং: এখনো দেওয়া হয়নি"
             )
             
@@ -212,7 +258,7 @@ def register_handlers(bot, FIREBASE_URL):
         except Exception as e:
             print(f"Channel forward error: {e}")
 
-    # ৫. স্টার রেটিং বাটন হ্যান্ডলার
+    # ৬. স্টার রেটিং বাটন হ্যান্ডলার
     @bot.callback_query_handler(func=lambda call: call.data.startswith("rate_"))
     def handle_rating(call):
         try:
@@ -233,7 +279,7 @@ def register_handlers(bot, FIREBASE_URL):
         except Exception as e:
             print(f"Rating error: {e}")
 
-    # ৬. সাপ্তাহিক লিডারবোর্ড বা টপ ১০ তালিকা (ডামি ডাটা সহ)
+    # ৭. সাপ্তাহিক লিডারবোর্ড বা টপ ১০ তালিকা (ডামি ডাটা সহ)
     @bot.message_handler(commands=['top10', 'top_posts'])
     def show_top_creators(message):
         try:
