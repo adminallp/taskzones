@@ -1,6 +1,7 @@
 import json
 import telebot
 import requests
+import random
 
 ADMIN_CHAT_ID = "@taskzones" 
 
@@ -190,7 +191,7 @@ def register_handlers(bot, FIREBASE_URL):
         category_map = {
             "cat_video": "🎥 ভিডিও এডিটিং",
             "cat_photo": "📸 ছবি এডিটিং",
-            "cat_voice": "🎙️ ভয়েস ওভার",
+            "cat_voice": "🎙️️ ভয়েস ওভার",
             "cat_share": "🔗 শেয়ারিং প্রুফ"
         }
         cat_key = call.data.replace("cat_", "")
@@ -230,7 +231,7 @@ def register_handlers(bot, FIREBASE_URL):
             parse_mode="Markdown"
         )
 
-    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার
+    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (অটো-এপ্রুভড উইথ অ্যাডমিন রিজেক্ট বাটন)
     @bot.message_handler(content_types=['photo', 'voice', 'audio', 'document'])
     def handle_media(message):
         user_id = message.from_user.id
@@ -243,4 +244,224 @@ def register_handlers(bot, FIREBASE_URL):
 
         selected_category = user_data.get('selected_category')
         if not selected_category:
-            bot.reply_to
+            bot.reply_to(message, "⚠️ অনুগ্রহ করে প্রথমে মেনু থেকে **'🚀 প্রুফ সাবমিট করুন'** এ প্রবেশ করে কাজের ক্যাটাগরি নির্ধারণ করুন!")
+            return
+
+        file_id = None
+        file_type = ""
+        
+        if message.photo:
+            file_id = message.photo[-1].file_id
+            file_type = "photo"
+        elif message.voice:
+            file_id = message.voice.file_id
+            file_type = "voice"
+        elif message.audio:
+            file_id = message.audio.file_id
+            file_type = "audio"
+        elif message.document:
+            file_id = message.document.file_id
+            file_type = "document"
+
+        submissions_url = f"{FIREBASE_URL}/submissions/{user_id}.json"
+        
+        cat_key_map = {
+            "🎥 ভিডিও এডিটিং": ("video_count", 40.0),
+            "📸 ছবি এডিটিং": ("photo_count", 20.0),
+            "🎙️ ভয়েস ওভার": ("voice_count", 15.0),
+            "🔗 শেয়ারিং প্রুফ": ("share_count", 10.0)
+        }
+        
+        count_key, reward_amount = cat_key_map.get(selected_category, ("share_count", 10.0))
+
+        # সাবমিশন ডেটা ফায়ারবেসে সেভ করা
+        new_sub_data = {
+            'file_id': file_id,
+            'file_type': file_type,
+            'category': selected_category,
+            'reward': reward_amount,
+            'count_key': count_key,
+            'status': 'active'
+        }
+        res = requests.post(submissions_url, json=new_sub_data)
+        sub_id = res.json().get('name')
+        
+        # অটোমেটিক ব্যালেন্স এবং টাস্ক কাউন্ট যোগ করে দেওয়া
+        current_task_bal = float(user_data.get('task_balance', 0.0))
+        new_task_bal = current_task_bal + reward_amount
+        
+        daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
+        daily_tasks[count_key] = daily_tasks.get(count_key, 0) + 1
+        
+        requests.patch(user_url, json={
+            'task_balance': new_task_bal,
+            'selected_category': None,
+            'daily_tasks': daily_tasks
+        })
+        
+        bot.reply_to(message, f"✅ আপনার প্রুফ সফলভাবে জমা হয়েছে এবং অ্যাকাউন্টে **৳{reward_amount}** যোগ করা হয়েছে! (নোট: কাজ মানসম্মত না হলে অ্যাডমিন তা বাতিল করলে ব্যালেন্স কর্তন হতে পারে)।", parse_mode="Markdown")
+
+        try:
+            markup = telebot.types.InlineKeyboardMarkup(row_width=1)
+            markup.add(
+                telebot.types.InlineKeyboardButton("❌ কাজ মানসম্মত নয় - রিজেক্ট ও ব্যালেন্স কাটুন", callback_data=f"autorej_{user_id}_{sub_id}")
+            )
+            
+            caption = (
+                f"📥 **নতুন টাস্ক সাবমিশন (অটো-এপ্রুভড):**\n\n"
+                f"👤 নাম: {user_data.get('first_name')}\n"
+                f"🆔 আইডি: `{user_id}`\n"
+                f"📂 ক্যাটাগরি: {selected_category}\n"
+                f"💵 প্রদানকৃত পেমেন্ট: ৳{reward_amount}\n"
+                f"📁 ফাইলের ধরন: {file_type}\n\n"
+                f"⚠️️ *কাজ ভুল বা অসম্পূর্ণ মনে হলে নিচের বাটনে ক্লিক করে রিজেক্ট করুন।*"
+            )
+            
+            bot.send_message(ADMIN_CHAT_ID, caption, parse_mode="Markdown", reply_markup=markup)
+            bot.forward_message(ADMIN_CHAT_ID, message.chat.id, message.message_id)
+        except Exception as e:
+            print(f"Channel forward error: {e}")
+
+    # ৫. স্টার রেটিং বাটন হ্যান্ডলার
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("rate_"))
+    def handle_rating(call):
+        try:
+            rating_value = int(call.data.split("_")[1])
+            message = call.message
+            old_text = message.text
+            
+            bot.answer_callback_query(call.id, f"✅ আপনি সফলভাবে {rating_value} স্টার রেটিং প্রদান করেছেন!")
+            
+            new_caption = old_text + f"\n\n✨ রেটিং প্রদান করা হয়েছে: {rating_value} স্টার ⭐"
+            
+            bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=message.message_id,
+                text=new_caption,
+                reply_markup=message.reply_markup
+            )
+        except Exception as e:
+            print(f"Rating error: {e}")
+
+    # ৬. অটোমেটিক সিস্টেমের জন্য রিজেক্ট ও ব্যালেন্স কর্তন হ্যান্ডলার
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("autorej_"))
+    def handle_auto_reject(call):
+        try:
+            data_parts = call.data.split("_")
+            target_user_id = data_parts[1]
+            sub_id = data_parts[2]
+            
+            sub_url = f"{FIREBASE_URL}/submissions/{target_user_id}/{sub_id}.json"
+            sub_data = requests.get(sub_url).json()
+            
+            if not sub_data or sub_data.get('status') == 'rejected':
+                bot.answer_callback_query(call.id, "⚠️ এই প্রুফটি আগেই রিজেক্ট করা হয়েছে!", show_alert=True)
+                return
+                
+            reward_amount = float(sub_data.get('reward', 0.0))
+            count_key = sub_data.get('count_key')
+            category = sub_data.get('category')
+            
+            user_url = f"{FIREBASE_URL}/users/{target_user_id}.json"
+            user_data = requests.get(user_url).json() or {}
+            
+            # ইউজারের ব্যালেন্স থেকে টাকা মাইনাস করা
+            current_task_bal = float(user_data.get('task_balance', 0.0))
+            new_task_bal = max(0.0, current_task_bal - reward_amount)
+            
+            # ডেইলি টাস্ক কাউন্ট এক কমিয়ে দেওয়া
+            daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
+            if daily_tasks.get(count_key, 0) > 0:
+                daily_tasks[count_key] -= 1
+                
+            requests.patch(user_url, json={
+                'task_balance': new_task_bal,
+                'daily_tasks': daily_tasks
+            })
+            
+            # সাবমিশন স্ট্যাটাস আপডেট করা
+            requests.patch(sub_url, json={'status': 'rejected'})
+            
+            bot.answer_callback_query(call.id, "❌ প্রুফ সফলভাবে রিজেক্ট করা হয়েছে এবং ইউজারের ব্যালেন্স থেকে টাকা কেটে নেওয়া হয়েছে।")
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=call.message.text + "\n\n❌ **স্ট্যাটাস:** রিজেক্ট করা হয়েছে ও ব্যালেন্স কর্তন করা হয়েছে ⚠️",
+                parse_mode="Markdown"
+            )
+            
+            # ইউজারকে কারণসহ নোটিফিকেশন পাঠানো
+            try:
+                reject_msg = (
+                    f"⚠️ **আপনার প্রুফটি বাতিল (Rejected) করা হয়েছে!**\n\n"
+                    f"📂 ক্যাটাগরি: {category}\n"
+                    f"❌ কারণ: আপনার জমা দেওয়া কাজটি মানসম্মত হয়নি বা অসম্পূর্ণ ছিল।\n"
+                    f"💵 কর্তনকৃত পরিমাণ: ৳{reward_amount}\n\n"
+                    f"💡 দয়া করে নির্দেশিকা ভালোভাবে পড়ে কাজটি আবার নিখুঁতভাবে সম্পন্ন করে পুনরায় জমা দিন।"
+                )
+                bot.send_message(target_user_id, reject_msg, parse_mode="Markdown")
+            except:
+                pass
+                
+        except Exception as e:
+            print(f"Auto reject error: {e}")
+            bot.answer_callback_query(call.id, "⚠️ একটি ত্রুটি ঘটেছে!", show_alert=True)
+
+    # ৭. সাপ্তাহিক লিডারবোর্ড (রিয়েল ইউজার ও আপ-ডাউনশীল ডামি ইউজারের সমন্বিত টপ ১০ তালিকা)
+    @bot.message_handler(commands=['top10', 'top_posts'])
+    def show_top_creators(message):
+        try:
+            users_url = f"{FIREBASE_URL}/users.json"
+            users_res = requests.get(users_url).json() or {}
+            
+            user_scores = []
+            
+            # ফায়ারবেস থেকে রিয়াল ইউজারদের ডেটা ফেচ করা
+            for uid, udata in users_res.items():
+                if isinstance(udata, dict):
+                    name = udata.get('first_name', 'User')
+                    score = float(udata.get('task_balance', 0.0)) + float(udata.get('referral_balance', 0.0))
+                    user_scores.append({'name': name, 'score': score})
+            
+            # ডামি ইউজারদের বেস লিস্ট (যাদের পয়েন্ট সামান্য ওঠানামা বা আপ-ডাউন করবে)
+            base_dummy_users = [
+                {'name': 'Rakibul Islam', 'base_score': 1150.0},
+                {'name': 'Tanvir Ahmed', 'base_score': 920.0},
+                {'name': 'Nazmul Hossain', 'base_score': 810.0},
+                {'name': 'Sumaiya Akter', 'base_score': 690.0},
+                {'name': 'Mehedi Hasan', 'base_score': 580.0},
+                {'name': 'Farhana Yeasmin', 'base_score': 510.0},
+                {'name': 'Imran Khan', 'base_score': 450.0},
+                {'name': 'Sharmin Sultana', 'base_score': 380.0},
+                {'name': 'Al-Amin Hossain', 'base_score': 320.0},
+                {'name': 'Nusrat Jahan', 'base_score': 270.0}
+            ]
+            
+            # রেন্ডম ওঠানামা (-২০ থেকে +৩০ পয়েন্ট) যোগ করা যাতে রিয়াল ইউজাররা ওভারটেক করতে পারে
+            for dummy in base_dummy_users:
+                fluctuation = random.randint(-20, 30)
+                current_dummy_score = max(50.0, dummy['base_score'] + fluctuation)
+                
+                if not any(u['name'] == dummy['name'] for u in user_scores):
+                    user_scores.append({'name': dummy['name'], 'score': current_dummy_score})
+
+            # স্কোর অনুযায়ী সর্ট করা
+            user_scores = sorted(user_scores, key=lambda x: x['score'], reverse=True)
+            
+            top_10_text = (
+                "🏆 **Task Zone - সাপ্তাহিক সেরা ১০ পারফর্মার লিডারবোর্ড** 🏆\n\n"
+                "✨ নিয়মিত কাজ করুন, পয়েন্ট বাড়ান এবং লিডারবোর্ডের শীর্ষে উঠে জিতে নিন আকর্ষণীয় পুরস্কার!\n\n"
+            )
+            
+            for index, user in enumerate(user_scores[:10], start=1):
+                medal = "🥇" if index == 1 else "🥈" if index == 2 else "🥉" if index == 3 else f"{index}."
+                formatted_score = round(user['score'], 1)
+                top_10_text += f"{medal} **{user['name']}** — ৳{formatted_score} পয়েন্ট\n"
+            
+            top_10_text += "\n💡 *টিপস:* বেশি বেশি প্রজেক্ট সম্পন্ন করুন এবং রেফারেল বাড়িয়ে আপনার পজিশন শীর্ষে নিয়ে যান!"
+            
+            bot.reply_to(message, top_10_text, parse_mode="Markdown")
+            
+        except Exception as e:
+            print(f"Top 10 error: {e}")
+            bot.reply_to(message, "⚠️ দুঃখিত, লিডারবোর্ড ডেটা লোড করতে সাময়িকভাবে সমস্যা হয়েছে।")
