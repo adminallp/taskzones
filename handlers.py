@@ -1,13 +1,12 @@
-import requests
 import json
 import telebot
+import requests
 
-# আপনার টেলিগ্রাম চ্যানেলের ইউজারনেম এখানে সেট করা হলো
 ADMIN_CHAT_ID = "@taskzones" 
 
 def register_handlers(bot, FIREBASE_URL):
 
-    # ১. স্টার্ট কমান্ড ও বাধ্যতামূলক রেফারেল চেক
+    # ১. স্টার্ট কমান্ড ও বাধ্যতামূলক থ্রি-লেভেল রেফারেল চেক (মোট ৫০ টাকা কমিশন)
     @bot.message_handler(commands=['start'])
     def send_welcome(message):
         user_id = message.from_user.id
@@ -35,20 +34,48 @@ def register_handlers(bot, FIREBASE_URL):
                 'referred_by': referred_by,
                 'team_members': [],
                 'strike': 0,
-                'selected_category': None
+                'selected_category': None,
+                'daily_tasks': {
+                    'video_count': 0,
+                    'photo_count': 0,
+                    'voice_count': 0,
+                    'share_count': 0
+                }
             }
             requests.put(user_url, json=user_data)
             
+            # থ্রি-লেভেল রেফারেল কমিশন ডিস্ট্রিবিউশন (Level A: 35৳, Level B: 10৳, Level C: 5৳)
             if str(referred_by) != str(user_id):
-                ref_url = f"{FIREBASE_URL}/users/{referred_by}.json"
-                ref_res = requests.get(ref_url)
-                ref_data = ref_res.json()
-                if ref_data:
-                    team = ref_data.get('team_members', [])
-                    team.append({'user_id': user_id, 'name': first_name})
-                    current_ref_bal = float(ref_data.get('referral_balance', 0.0))
-                    new_ref_bal = current_ref_bal + 10.0
-                    requests.patch(ref_url, json={'team_members': team, 'referral_balance': new_ref_bal})
+                ref_a_url = f"{FIREBASE_URL}/users/{referred_by}.json"
+                ref_a_res = requests.get(ref_a_url)
+                ref_a_data = ref_a_res.json()
+                
+                if ref_a_data:
+                    team_a = ref_a_data.get('team_members', [])
+                    team_a.append({'user_id': user_id, 'name': first_name})
+                    current_ref_bal_a = float(ref_a_data.get('referral_balance', 0.0))
+                    new_ref_bal_a = current_ref_bal_a + 35.0
+                    requests.patch(ref_a_url, json={'team_members': team_a, 'referral_balance': new_ref_bal_a})
+                    
+                    level_b_ref = ref_a_data.get('referred_by')
+                    if level_b_ref:
+                        ref_b_url = f"{FIREBASE_URL}/users/{level_b_ref}.json"
+                        ref_b_res = requests.get(ref_b_url)
+                        ref_b_data = ref_b_res.json()
+                        if ref_b_data:
+                            current_ref_bal_b = float(ref_b_data.get('referral_balance', 0.0))
+                            new_ref_bal_b = current_ref_bal_b + 10.0
+                            requests.patch(ref_b_url, json={'referral_balance': new_ref_bal_b})
+                            
+                            level_c_ref = ref_b_data.get('referred_by')
+                            if level_c_ref:
+                                ref_c_url = f"{FIREBASE_URL}/users/{level_c_ref}.json"
+                                ref_c_res = requests.get(ref_c_url)
+                                ref_c_data = ref_c_res.json()
+                                if ref_c_data:
+                                    current_ref_bal_c = float(ref_c_data.get('referral_balance', 0.0))
+                                    new_ref_bal_c = current_ref_bal_c + 5.0
+                                    requests.patch(ref_c_url, json={'referral_balance': new_ref_bal_c})
             
             bot.reply_to(message, f"🎉 অভিনন্দন, {first_name}! সফলভাবে রেফারেল যাচাইপূর্বক আপনার রেজিস্ট্রেশন সম্পন্ন হয়েছে।")
         else:
@@ -67,7 +94,7 @@ def register_handlers(bot, FIREBASE_URL):
         )
         bot.send_message(chat_id, "✨ নিচের প্রিমিয়াম অপশনগুলো থেকে আপনার কাঙ্ক্ষিত সেবাটি বেছে নিন:", reply_markup=markup)
 
-    # ২. মেনু অপশন হ্যান্ডলার (প্রফেশনাল ও ইউনিক শব্দ চয়ন সহ)
+    # ২. মেনু অপশন হ্যান্ডলার (ফায়ারবেস থেকে ডাইনামিক টাস্ক কনফিগ ও স্ক্রিপ্ট ফেচ করা)
     @bot.message_handler(func=lambda message: message.text in ["💼 চলমান প্রজেক্টসমূহ", "🚀 প্রুফ সাবমিট করুন", "💰 আমার আর্নিংস", "👤 পারসোনাল ড্যাশবোর্ড", "🔗 ইনভাইট লিংক"])
     def handle_menu_options(message):
         user_id = message.from_user.id
@@ -80,13 +107,27 @@ def register_handlers(bot, FIREBASE_URL):
             bot.reply_to(message, "⚠️ অনুগ্রহ করে প্রথমে /start কমান্ড টাইপ করে রেজিস্ট্রেশন প্রক্রিয়া সম্পন্ন করুন!")
             return
 
+        # ফায়ারবেস থেকে ডাইনামিক টাস্ক কনফিগ বা স্ক্রিপ্ট রিড করা
+        config_url = f"{FIREBASE_URL}/tasks_config.json"
+        config_data = requests.get(config_url).json() or {}
+
+        video_script = config_data.get('video', {}).get('script', 'নমুনা ভিডিও বা স্ক্রিপ্ট শিঘ্রই আপডেট করা হবে।')
+        photo_script = config_data.get('photo', {}).get('script', 'ছবি বা লোগোর রিকোয়ারমেন্ট শিঘ্রই আপডেট করা হবে।')
+        voice_script = config_data.get('voice', {}).get('script', 'ভয়েস ওভারের জন্য নির্ধারিত স্ক্রিপ্ট এখানে থাকবে।')
+        share_link = config_data.get('share', {}).get('link', 'শেয়ার করার জন্য নির্ধারিত লিংকটি এখানে থাকবে।')
+
         if text == "💼 চলমান প্রজেক্টসমূহ":
             task_text = (
-                "🎯 **সক্রিয় প্রজেক্ট ও টাস্ক ক্যাটাগরিসমূহ:**\n\n"
-                "1️⃣ **ভিডিও প্রমোশন:** সোশ্যাল মিডিয়ায় শর্ট ভিডিও মেকিং ও আপলোড\n"
-                "2️⃣ **সোশ্যাল শেয়ারিং:** ফেসবুক বা অন্যান্য প্ল্যাটফর্মে লিংক শেয়ার\n"
-                "3️⃣ **ভয়েস ওভার / অডিও:** প্রফেশনাল ভয়েস রেকর্ডিং সাবমিট\n"
-                "4️⃣ **গ্রাফিক্স ডিজাইন:** ব্যানার বা ইমেজ ডিজাইন প্রুফ\n\n"
+                "🎯 **সক্রিয় প্রজেক্ট, স্ক্রিপ্ট ও কাজের বিবরণসমূহ:**\n\n"
+                f"🎥 **১. ভিডিও এডিটিং (রেট: ৳৪০ | দৈনিক সর্বোচ্চ: ২টি)**\n"
+                f"   • *নির্দেশনা/স্ক্রিপ্ট:* {video_script}\n\n"
+                f"📸 **২. ছবি এডিটিং (রেট: ৳২০ | দৈনিক সর্বোচ্চ: ৩টি)**\n"
+                f"   • *নির্দেশনা:* {photo_script}\n\n"
+                f"🎙️ **৩. ভয়েস ওভার / অডিও (রেট: ৳১৫ | দৈনিক সর্বোচ্চ: ৩টি)**\n"
+                f"   • *স্ক্রিপ্ট:* {voice_script}\n\n"
+                f"🔗 **৪. লিংক বা ভিডিও শেয়ারিং (রেট: ৳১০ | দৈনিক সর্বোচ্চ: ৫টি)**\n"
+                f"   • *শেয়ার লিংক:* {share_link}\n\n"
+                "⭐ **বিশেষ দ্রষ্টব্য:** কাজের কোয়ালিটি বা মান চমৎকার ও নিখুঁত হলে অ্যাডমিন প্যানেল থেকে বিশেষ বোনাস দেওয়া হবে!\n\n"
                 "💡 কাজ সম্পন্ন করার পর প্রুফ জমা দিতে নিচের **'🚀 প্রুফ সাবমিট করুন'** অপশনে ক্লিক করুন।"
             )
             bot.reply_to(message, task_text, parse_mode="Markdown")
@@ -94,12 +135,12 @@ def register_handlers(bot, FIREBASE_URL):
         elif text == "🚀 প্রুফ সাবমিট করুন":
             markup = telebot.types.InlineKeyboardMarkup(row_width=2)
             markup.add(
-                telebot.types.InlineKeyboardButton("📸 ফেসবুক স্ক্রিনশট", callback_data="cat_facebook"),
-                telebot.types.InlineKeyboardButton("🎥 ভিডিও মেকিং প্রুফ", callback_data="cat_video"),
-                telebot.types.InlineKeyboardButton("🎙️ ভয়েস ওভার অডিও", callback_data="cat_voice"),
-                telebot.types.InlineKeyboardButton("🎨 ডিজাইন / অন্যান্য ফাইল", callback_data="cat_design")
+                telebot.types.InlineKeyboardButton("🎥 ভিডিও এডিটিং (৳৪০)", callback_data="cat_video"),
+                telebot.types.InlineKeyboardButton("📸 ছবি এডিটিং (৳২০)", callback_data="cat_photo"),
+                telebot.types.InlineKeyboardButton("🎙️ ভয়েস ওভার (৳১৫)", callback_data="cat_voice"),
+                telebot.types.InlineKeyboardButton("🔗 শেয়ারিং প্রুফ (৳১০)", callback_data="cat_share")
             )
-            bot.reply_to(message, "📂 আপনি ঠিক কোন ক্যাটাগরির কাজ জমা দিতে চান? নিচের বাটন থেকে যথাযথ ক্যাটাগরি সিলেক্ট করুন:", reply_markup=markup)
+            bot.reply_to(message, "📂 আপনি কোন ক্যাটাগরির কাজ জমা দিতে চান? নিচের বাটন থেকে যথাযথ ক্যাটাগরি সিলেক্ট করুন:", reply_markup=markup)
             
         elif text == "💰 আমার আর্নিংস":
             t_bal = float(user_data.get('task_balance', 0.0))
@@ -112,7 +153,7 @@ def register_handlers(bot, FIREBASE_URL):
                 f"🛠️ প্রজেক্ট ব্যালেন্স: ৳{t_bal}\n"
                 f"🎁 রেফারেল বোনাস: ৳{r_bal}\n"
                 f"💵 **মোট ব্যালেন্স:** ৳{total_bal}\n"
-                f"⚠️ **সতর্কতা / স্ট্রাইক:** {strike_count} টি"
+                f"⚠️️ **সতর্কতা / স্ট্রাইক:** {strike_count} টি"
             )
             bot.reply_to(message, bal_text, parse_mode="Markdown")
                 
@@ -138,23 +179,47 @@ def register_handlers(bot, FIREBASE_URL):
             ref_link = f"https://t.me/{bot.get_me().username}?start={user_id}"
             ref_msg = (
                 f"🔗 **আপনার ইউনিক রেফারেল লিংক:**\n`{ref_link}`\n\n"
-                "এই লিংকটি আপনার বন্ধুদের সাথে শেয়ার করুন। এর মাধ্যমে নতুন মেম্বার যুক্ত হলে আপনার অ্যাকাউন্টে স্বয়ংক্রিয়ভাবে বোনাস যোগ হবে!"
+                "এই লিংকটি আপনার বন্ধুদের সাথে শেয়ার করুন। নতুন মেম্বার যুক্ত হলে থ্রি-লেভেল সিস্টেমে মোট **৳৫০** পর্যন্ত রেফারেল কমিশন আপনার অ্যাকাউন্টে যোগ হবে!"
             )
             bot.reply_to(message, ref_msg, parse_mode="Markdown")
 
-    # ৩. কাজের ক্যাটাগরি সিলেকশন হ্যান্ডলার (ইনলাইন বাটন)
+    # ৩. কাজের ক্যাটাগরি সিলেকশন হ্যান্ডলার (ডেইলি লিমিট চেকসহ)
     @bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
     def handle_category_selection(call):
         user_id = call.from_user.id
         category_map = {
-            "cat_facebook": "📸 ফেসবুক স্ক্রিনশট",
-            "cat_video": "🎥 ভিডিও মেকিং প্রুফ",
-            "cat_voice": "🎙️ ভয়েস ওভার অডিও",
-            "cat_design": "🎨 ডিজাইন / অন্যান্য ফাইল"
+            "cat_video": "🎥 ভিডিও এডিটিং",
+            "cat_photo": "📸 ছবি এডিটিং",
+            "cat_voice": "🎙️ ভয়েস ওভার",
+            "cat_share": "🔗 শেয়ারিং প্রুফ"
         }
+        cat_key = call.data.replace("cat_", "")
         selected_cat = category_map.get(call.data, "সাধারণ প্রুফ")
         
         user_url = f"{FIREBASE_URL}/users/{user_id}.json"
+        user_data = requests.get(user_url).json() or {}
+        daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
+        
+        limits = {
+            "video": (2, "ভিডিও এডিটিং দৈনিক সর্বোচ্চ ২টি করা যাবে।"),
+            "photo": (3, "ছবি এডিটিং দৈনিক সর্বোচ্চ ৩টি করা যাবে।"),
+            "voice": (3, "ভয়েস ওভার দৈনিক সর্বোচ্চ ৩টি করা যাবে।"),
+            "share": (5, "শেয়ারিং দৈনিক সর্বোচ্চ ৫টি করা যাবে।")
+        }
+        
+        max_limit, limit_msg = limits.get(cat_key, (10, ""))
+        current_count = daily_tasks.get(f"{cat_key}_count", 0)
+        
+        if current_count >= max_limit:
+            bot.answer_callback_query(call.id, f"⚠️ দুঃখিত! আজকের জন্য আপনার এই টাস্কের লিমিট শেষ।", show_alert=True)
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=f"⚠️ **দৈনিক লিমিট পূর্ণ!**\n\n{limit_msg}",
+                parse_mode="Markdown"
+            )
+            return
+            
         requests.patch(user_url, json={'selected_category': selected_cat})
         
         bot.answer_callback_query(call.id, f"✅ সফলভাবে নির্বাচিত হয়েছে: {selected_cat}")
@@ -213,6 +278,18 @@ def register_handlers(bot, FIREBASE_URL):
             bot.reply_to(message, f"❌ **সতর্কবার্তা!** আপনি এই একই প্রুফ বা ফাইল ইতিপূর্বেও জমা দিয়েছেন। ডুপ্লিকেট সাবমিশন পাঠানোর কারণে আপনার অ্যাকাউন্টে একটি **স্ট্রাইক ({current_strikes})** যুক্ত করা হলো।", parse_mode="Markdown")
             return
 
+        cat_key_map = {
+            "🎥 ভিডিও এডিটিং": ("video_count", 40.0),
+            "📸 ছবি এডিটিং": ("photo_count", 20.0),
+            "🎙️ ভয়েস ওভার": ("voice_count", 15.0),
+            "🔗 শেয়ারিং প্রুফ": ("share_count", 10.0)
+        }
+        
+        count_key, reward_amount = cat_key_map.get(selected_category, ("share_count", 10.0))
+        
+        daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
+        daily_tasks[count_key] = daily_tasks.get(count_key, 0) + 1
+
         new_sub_data = {
             'file_id': file_id,
             'file_type': file_type,
@@ -222,10 +299,15 @@ def register_handlers(bot, FIREBASE_URL):
         requests.post(submissions_url, json=new_sub_data)
         
         current_task_bal = float(user_data.get('task_balance', 0.0))
-        new_task_bal = current_task_bal + 10.0
-        requests.patch(user_url, json={'task_balance': new_task_bal, 'selected_category': None})
+        new_task_bal = current_task_bal + reward_amount
         
-        bot.reply_to(message, f"✅ আপনার প্রুফ সফলভাবে গৃহীত হয়েছে! ক্যাটাগরি: **{selected_category}**। টাস্ক সফলভাবে সম্পন্ন হওয়ায় আপনার অ্যাকাউন্টে **৳১০** বোনাস যোগ করা হয়েছে।", parse_mode="Markdown")
+        requests.patch(user_url, json={
+            'task_balance': new_task_bal, 
+            'selected_category': None,
+            'daily_tasks': daily_tasks
+        })
+        
+        bot.reply_to(message, f"✅ আপনার প্রুফ সফলভাবে গৃহীত হয়েছে! ক্যাটাগরি: **{selected_category}**। টাস্ক সফলভাবে সম্পন্ন হওয়ায় আপনার অ্যাকাউন্টে **৳{reward_amount}** যোগ করা হয়েছে।", parse_mode="Markdown")
 
         try:
             markup = telebot.types.InlineKeyboardMarkup(row_width=5)
@@ -242,6 +324,7 @@ def register_handlers(bot, FIREBASE_URL):
                 f"👤 নাম: {user_data.get('first_name')}\n"
                 f"🆔 আইডি: `{user_id}`\n"
                 f"📂 ক্যাটাগরি: {selected_category}\n"
+                f"💵 নির্ধারিত পেমেন্ট: ৳{reward_amount}\n"
                 f"📁 ফাইলের ধরণ: {file_type}\n"
                 f"⭐ স্টার রেটিং: এখনও প্রদান করা হয়নি"
             )
@@ -272,7 +355,7 @@ def register_handlers(bot, FIREBASE_URL):
         except Exception as e:
             print(f"Rating error: {e}")
 
-    # ৬. সাপ্তাহিক লিডারবোর্ড বা টপ ১০ তালিকা (ডামি ডাটা সহ)
+    # ৬. সাপ্তাহিক লিডারবোর্ড বা টপ ১০ তালিকা
     @bot.message_handler(commands=['top10', 'top_posts'])
     def show_top_creators(message):
         try:
