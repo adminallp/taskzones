@@ -111,8 +111,8 @@ def register_handlers(bot, FIREBASE_URL):
         config_url = f"{FIREBASE_URL}/tasks_config.json"
         config_data = requests.get(config_url).json() or {}
 
-        video_script = config_data.get('video', {}).get('script', 'নমুনা ভিডিও বা স্ক্রিপ্ট শিঘ্রই আপডেট করা হবে।')
-        photo_script = config_data.get('photo', {}).get('script', 'ছবি বা লোগোর রিকোয়ারমেন্ট শিঘ্রই আপডেট করা হবে।')
+        video_script = config_data.get('video', {}).get('script', 'নমুনা ভিডিও বা স্ক্রিপ্ট শীঘ্রই আপডেট করা হবে।')
+        photo_script = config_data.get('photo', {}).get('script', 'ছবি বা লোগোর রিকোয়ারমেন্ট শীঘ্রই আপডেট করা হবে।')
         voice_script = config_data.get('voice', {}).get('script', 'ভয়েস ওভারের জন্য নির্ধারিত স্ক্রিপ্ট এখানে থাকবে।')
         share_link = config_data.get('share', {}).get('link', 'শেয়ার করার জন্য নির্ধারিত লিংকটি এখানে থাকবে।')
 
@@ -153,7 +153,7 @@ def register_handlers(bot, FIREBASE_URL):
                 f"🛠️ প্রজেক্ট ব্যালেন্স: ৳{t_bal}\n"
                 f"🎁 রেফারেল বোনাস: ৳{r_bal}\n"
                 f"💵 **মোট ব্যালেন্স:** ৳{total_bal}\n"
-                f"⚠️️ **সতর্কতা / স্ট্রাইক:** {strike_count} টি"
+                f"⚠️ **সতর্কতা / স্ট্রাইক:** {strike_count} টি"
             )
             bot.reply_to(message, bal_text, parse_mode="Markdown")
                 
@@ -243,166 +243,4 @@ def register_handlers(bot, FIREBASE_URL):
 
         selected_category = user_data.get('selected_category')
         if not selected_category:
-            bot.reply_to(message, "⚠️ অনুগ্রহ করে প্রথমে মেনু থেকে **'🚀 প্রুফ সাবমিট করুন'** এ প্রবেশ করে কাজের ক্যাটাগরি নির্ধারণ করুন!")
-            return
-
-        file_id = None
-        file_type = ""
-        
-        if message.photo:
-            file_id = message.photo[-1].file_id
-            file_type = "photo"
-        elif message.voice:
-            file_id = message.voice.file_id
-            file_type = "voice"
-        elif message.audio:
-            file_id = message.audio.file_id
-            file_type = "audio"
-        elif message.document:
-            file_id = message.document.file_id
-            file_type = "document"
-
-        submissions_url = f"{FIREBASE_URL}/submissions/{user_id}.json"
-        existing_subs = requests.get(submissions_url).json() or {}
-        
-        is_duplicate = False
-        for sub_key, sub_val in existing_subs.items():
-            if isinstance(sub_val, dict) and sub_val.get('file_id') == file_id:
-                is_duplicate = True
-                break
-
-        if is_duplicate:
-            current_strikes = int(user_data.get('strike', 0)) + 1
-            requests.patch(user_url, json={'strike': current_strikes})
-            
-            bot.reply_to(message, f"❌ **সতর্কবার্তা!** আপনি এই একই প্রুফ বা ফাইল ইতিপূর্বেও জমা দিয়েছেন। ডুপ্লিকেট সাবমিশন পাঠানোর কারণে আপনার অ্যাকাউন্টে একটি **স্ট্রাইক ({current_strikes})** যুক্ত করা হলো।", parse_mode="Markdown")
-            return
-
-        cat_key_map = {
-            "🎥 ভিডিও এডিটিং": ("video_count", 40.0),
-            "📸 ছবি এডিটিং": ("photo_count", 20.0),
-            "🎙️ ভয়েস ওভার": ("voice_count", 15.0),
-            "🔗 শেয়ারিং প্রুফ": ("share_count", 10.0)
-        }
-        
-        count_key, reward_amount = cat_key_map.get(selected_category, ("share_count", 10.0))
-        
-        daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
-        daily_tasks[count_key] = daily_tasks.get(count_key, 0) + 1
-
-        new_sub_data = {
-            'file_id': file_id,
-            'file_type': file_type,
-            'category': selected_category,
-            'status': 'approved'
-        }
-        requests.post(submissions_url, json=new_sub_data)
-        
-        current_task_bal = float(user_data.get('task_balance', 0.0))
-        new_task_bal = current_task_bal + reward_amount
-        
-        requests.patch(user_url, json={
-            'task_balance': new_task_bal, 
-            'selected_category': None,
-            'daily_tasks': daily_tasks
-        })
-        
-        bot.reply_to(message, f"✅ আপনার প্রুফ সফলভাবে গৃহীত হয়েছে! ক্যাটাগরি: **{selected_category}**। টাস্ক সফলভাবে সম্পন্ন হওয়ায় আপনার অ্যাকাউন্টে **৳{reward_amount}** যোগ করা হয়েছে।", parse_mode="Markdown")
-
-        try:
-            markup = telebot.types.InlineKeyboardMarkup(row_width=5)
-            markup.add(
-                telebot.types.InlineKeyboardButton("⭐ 1", callback_data="rate_1"),
-                telebot.types.InlineKeyboardButton("⭐ 2", callback_data="rate_2"),
-                telebot.types.InlineKeyboardButton("⭐ 3", callback_data="rate_3"),
-                telebot.types.InlineKeyboardButton("⭐ 4", callback_data="rate_4"),
-                telebot.types.InlineKeyboardButton("⭐ 5", callback_data="rate_5")
-            )
-            
-            caption = (
-                f"📥 **নতুন টাস্ক প্রুফ সাবমিশন:**\n\n"
-                f"👤 নাম: {user_data.get('first_name')}\n"
-                f"🆔 আইডি: `{user_id}`\n"
-                f"📂 ক্যাটাগরি: {selected_category}\n"
-                f"💵 নির্ধারিত পেমেন্ট: ৳{reward_amount}\n"
-                f"📁 ফাইলের ধরণ: {file_type}\n"
-                f"⭐ স্টার রেটিং: এখনও প্রদান করা হয়নি"
-            )
-            
-            bot.send_message(ADMIN_CHAT_ID, caption, parse_mode="Markdown", reply_markup=markup)
-            bot.forward_message(ADMIN_CHAT_ID, message.chat.id, message.message_id)
-        except Exception as e:
-            print(f"Channel forward error: {e}")
-
-    # ৫. স্টার রেটিং বাটন হ্যান্ডলার
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("rate_"))
-    def handle_rating(call):
-        try:
-            rating_value = int(call.data.split("_")[1])
-            message = call.message
-            old_text = message.text
-            
-            bot.answer_callback_query(call.id, f"✅ আপনি সফলভাবে {rating_value} স্টার রেটিং প্রদান করেছেন!")
-            
-            new_caption = old_text + f"\n\n✨ রেটিং প্রদান করা হয়েছে: {rating_value} স্টার ⭐"
-            
-            bot.edit_message_text(
-                chat_id=message.chat.id,
-                message_id=message.message_id,
-                text=new_caption,
-                reply_markup=message.reply_markup
-            )
-        except Exception as e:
-            print(f"Rating error: {e}")
-
-    # ৬. সাপ্তাহিক লিডারবোর্ড বা টপ ১০ তালিকা
-    @bot.message_handler(commands=['top10', 'top_posts'])
-    def show_top_creators(message):
-        try:
-            users_url = f"{FIREBASE_URL}/users.json"
-            users_res = requests.get(users_url).json() or {}
-            
-            user_scores = []
-            
-            for uid, udata in users_res.items():
-                if isinstance(udata, dict):
-                    name = udata.get('first_name', 'User')
-                    score = float(udata.get('task_balance', 0.0)) + float(udata.get('referral_balance', 0.0))
-                    user_scores.append({'name': name, 'score': score})
-            
-            dummy_users = [
-                {'name': 'Rakibul Islam', 'score': 1250.0},
-                {'name': 'Tanvir Ahmed', 'score': 980.0},
-                {'name': 'Nazmul Hossain', 'score': 850.0},
-                {'name': 'Sumaiya Akter', 'score': 720.0},
-                {'name': 'Mehedi Hasan', 'score': 640.0},
-                {'name': 'Farhana Yeasmin', 'score': 550.0},
-                {'name': 'Imran Khan', 'score': 490.0},
-                {'name': 'Sharmin Sultana', 'score': 410.0},
-                {'name': 'Al-Amin Hossain', 'score': 350.0},
-                {'name': 'Nusrat Jahan', 'score': 300.0}
-            ]
-            
-            for dummy in dummy_users:
-                if len(user_scores) < 10:
-                    if not any(u['name'] == dummy['name'] for u in user_scores):
-                        user_scores.append(dummy)
-            
-            user_scores = sorted(user_scores, key=lambda x: x['score'], reverse=True)
-            
-            top_10_text = (
-                "🏆 **Task Zone - সাপ্তাহিক সেরা ১০ পারফর্মার লিডারবোর্ড** 🏆\n\n"
-                "✨ প্রতি সপ্তাহের শীর্ষ ৩ জন বিজয়ী অর্জন করবেন আকর্ষণীয় ক্যাশ প্রাইস ও বিশেষ বোনাস পুরস্কার!\n\n"
-            )
-            
-            for index, user in enumerate(user_scores[:10], start=1):
-                medal = "🥇" if index == 1 else "🥈" if index == 2 else "🥉" if index == 3 else f"{index}."
-                top_10_text += f"{medal} **{user['name']}** — ৳{user['score']} পয়েন্ট\n"
-            
-            top_10_text += "\n💡 লিডারবোর্ডে আপনার নাম শীর্ষস্থানে উন্নীত করতে নিয়মিত প্রজেক্টে কাজ করুন এবং রেফারেল বাড়ান!"
-            
-            bot.reply_to(message, top_10_text, parse_mode="Markdown")
-            
-        except Exception as e:
-            print(f"Top 10 error: {e}")
-            bot.reply_to(message, "⚠️ দুঃখিত, লিডারবোর্ড ডেটা লোড করতে সাময়িকভাবে সমস্যা হয়েছে।")
+            bot.reply_to
