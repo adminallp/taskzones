@@ -5,6 +5,9 @@ import random
 
 ADMIN_CHAT_ID = "@taskzones" 
 
+# আপনার এবং বিশ্বস্ত অ্যাডমিনদের টেলিগ্রাম নিউমেরিক আইডি লিস্ট (এখানে আপনার আইডি 6638372219 যুক্ত করা হয়েছে)
+ADMIN_IDS = [6638372219]
+
 def register_handlers(bot, FIREBASE_URL):
 
     # ১. স্টার্ট কমান্ড ও বাধ্যতামূলক থ্রি-লেভেল রেফারেল চেক (মোট ৫০ টাকা কমিশন)
@@ -191,7 +194,7 @@ def register_handlers(bot, FIREBASE_URL):
         category_map = {
             "cat_video": "🎥 ভিডিও এডিটিং",
             "cat_photo": "📸 ছবি এডিটিং",
-            "cat_voice": "🎙️️ ভয়েস ওভার",
+            "cat_voice": "🎙 ভয়েস ওভার",
             "cat_share": "🔗 শেয়ারিং প্রুফ"
         }
         cat_key = call.data.replace("cat_", "")
@@ -231,7 +234,7 @@ def register_handlers(bot, FIREBASE_URL):
             parse_mode="Markdown"
         )
 
-    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (অটো-এপ্রুভড উইথ অ্যাডমিন রিজেক্ট বাটন)
+    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (অটো-এপ্রুভড উইথ অ্যাডমিন সিকিউরড রিজেক্ট বাটন ও রেটিং)
     @bot.message_handler(content_types=['photo', 'voice', 'audio', 'document'])
     def handle_media(message):
         user_id = message.from_user.id
@@ -303,18 +306,22 @@ def register_handlers(bot, FIREBASE_URL):
 
         try:
             markup = telebot.types.InlineKeyboardMarkup(row_width=1)
+            # চ্যানেলের পোস্টে স্টার রেটিং এবং রিজেক্ট বাটন যুক্ত করা হলো
             markup.add(
+                telebot.types.InlineKeyboardButton("⭐ ১ স্টার", callback_data="rate_1"),
+                telebot.types.InlineKeyboardButton("⭐⭐ ২ স্টার", callback_data="rate_2"),
+                telebot.types.InlineKeyboardButton("⭐⭐⭐ ৩ স্টার", callback_data="rate_3"),
                 telebot.types.InlineKeyboardButton("❌ কাজ মানসম্মত নয় - রিজেক্ট ও ব্যালেন্স কাটুন", callback_data=f"autorej_{user_id}_{sub_id}")
             )
             
             caption = (
-                f"📥 **নতুন টাস্ক সাবমিশন (অটো-এপ্রুভড):**\n\n"
+                f"📥 **নতুন টাস্ক সাবমিশন (পাবলিক ফিড):**\n\n"
                 f"👤 নাম: {user_data.get('first_name')}\n"
                 f"🆔 আইডি: `{user_id}`\n"
                 f"📂 ক্যাটাগরি: {selected_category}\n"
                 f"💵 প্রদানকৃত পেমেন্ট: ৳{reward_amount}\n"
                 f"📁 ফাইলের ধরন: {file_type}\n\n"
-                f"⚠️️ *কাজ ভুল বা অসম্পূর্ণ মনে হলে নিচের বাটনে ক্লিক করে রিজেক্ট করুন।*"
+                f"💡 *অন্যান্য ইউজাররা এই কাজে রেটিং দিতে পারবেন। কাজ ভুল বা অসম্পূর্ণ হলে শুধুমাত্র অ্যাডমিনগণ রিজেক্ট করতে পারবেন।*"
             )
             
             bot.send_message(ADMIN_CHAT_ID, caption, parse_mode="Markdown", reply_markup=markup)
@@ -343,9 +350,14 @@ def register_handlers(bot, FIREBASE_URL):
         except Exception as e:
             print(f"Rating error: {e}")
 
-    # ৬. অটোমেটিক সিস্টেমের জন্য রিজেক্ট ও ব্যালেন্স কর্তন হ্যান্ডলার
+    # ৬. সিকিউরড অটোমেটিক রিজেক্ট ও ব্যালেন্স কর্তন হ্যান্ডলার (শুধুমাত্র নির্দিষ্ট অ্যাডমিনদের জন্য কার্যকর)
     @bot.callback_query_handler(func=lambda call: call.data.startswith("autorej_"))
     def handle_auto_reject(call):
+        # সিকিউরিটি চেক: ক্লিককারী ইউজার অ্যাডমিন লিস্টে আছে কিনা যাচাই করা
+        if call.from_user.id not in ADMIN_IDS:
+            bot.answer_callback_query(call.id, "⚠️ আপনার এই কাজটি করার অনুমতি নেই! এটি শুধুমাত্র অ্যাডমিনদের জন্য নির্ধারিত।", show_alert=True)
+            return
+
         try:
             data_parts = call.data.split("_")
             target_user_id = data_parts[1]
