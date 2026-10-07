@@ -5,7 +5,7 @@ import random
 
 ADMIN_CHAT_ID = "@taskzones" 
 
-# আপনার এবং বিশ্বস্ত অ্যাডমিনদের টেলিগ্রাম নিউমেরিক আইডি লিস্ট (এখানে আপনার আইডি 6638372219 যুক্ত করা হয়েছে)
+# আপনার এবং বিশ্বস্ত অ্যাডমিনদের টেলিগ্রাম নিউমেরিক আইডি লিস্ট
 ADMIN_IDS = [6638372219]
 
 def register_handlers(bot, FIREBASE_URL):
@@ -48,7 +48,7 @@ def register_handlers(bot, FIREBASE_URL):
             }
             requests.put(user_url, json=user_data)
             
-            # থ্রি-লেভেল রেফারেল কমিশন ডিস্ট্রিবিউশন (Level A: 35৳, Level B: 10৳, Level C: 5৳)
+            # থ্রি-লেভেল রেফারেল কমিশন ডিস্ট্রিবিউশন
             if str(referred_by) != str(user_id):
                 ref_a_url = f"{FIREBASE_URL}/users/{referred_by}.json"
                 ref_a_res = requests.get(ref_a_url)
@@ -94,12 +94,13 @@ def register_handlers(bot, FIREBASE_URL):
             telebot.types.KeyboardButton("🚀 প্রুফ সাবমিট করুন"),
             telebot.types.KeyboardButton("💰 আমার আর্নিংস"),
             telebot.types.KeyboardButton("👤 পারসোনাল ড্যাশবোর্ড"),
+            telebot.types.KeyboardButton("🏆 শীর্ষ লিডারবোর্ড"),
             telebot.types.KeyboardButton("🔗 ইনভাইট লিংক")
         )
         bot.send_message(chat_id, "✨ নিচের প্রিমিয়াম অপশনগুলো থেকে আপনার কাঙ্ক্ষিত সেবাটি বেছে নিন:", reply_markup=markup)
 
-    # ২. মেনু অপশন হ্যান্ডলার (ফায়ারবেস থেকে ডাইনামিক টাস্ক কনফিগ ও স্ক্রিপ্ট ফেচ করা)
-    @bot.message_handler(func=lambda message: message.text in ["💼 চলমান প্রজেক্টসমূহ", "🚀 প্রুফ সাবমিট করুন", "💰 আমার আর্নিংস", "👤 পারসোনাল ড্যাশবোর্ড", "🔗 ইনভাইট লিংক"])
+    # ২. মেনু অপশন হ্যান্ডলার
+    @bot.message_handler(func=lambda message: message.text in ["💼 চলমান প্রজেক্টসমূহ", "🚀 প্রুফ সাবমিট করুন", "💰 আমার আর্নিংস", "👤 পারসোনাল ড্যাশবোর্ড", "🏆 শীর্ষ লিডারবোর্ড", "🔗 ইনভাইট লিংক"])
     def handle_menu_options(message):
         user_id = message.from_user.id
         text = message.text
@@ -107,11 +108,10 @@ def register_handlers(bot, FIREBASE_URL):
         user_url = f"{FIREBASE_URL}/users/{user_id}.json"
         user_data = requests.get(user_url).json()
         
-        if not user_data:
+        if not user_data and text != "🏆 শীর্ষ লিডারবোর্ড":
             bot.reply_to(message, "⚠️ অনুগ্রহ করে প্রথমে /start কমান্ড টাইপ করে রেজিস্ট্রেশন প্রক্রিয়া সম্পন্ন করুন!")
             return
 
-        # ফায়ারবেস থেকে ডাইনামিক টাস্ক কনফিগ বা স্ক্রিপ্ট রিড করা
         config_url = f"{FIREBASE_URL}/tasks_config.json"
         config_data = requests.get(config_url).json() or {}
 
@@ -131,7 +131,6 @@ def register_handlers(bot, FIREBASE_URL):
                 f"   • *স্ক্রিপ্ট:* {voice_script}\n\n"
                 f"🔗 **৪. লিংক বা ভিডিও শেয়ারিং (রেট: ৳১০ | দৈনিক সর্বোচ্চ: ৫টি)**\n"
                 f"   • *শেয়ার লিংক:* {share_link}\n\n"
-                "⭐ **বিশেষ দ্রষ্টব্য:** কাজের কোয়ালিটি বা মান চমৎকার ও নিখুঁত হলে অ্যাডমিন প্যানেল থেকে বিশেষ বোনাস দেওয়া হবে!\n\n"
                 "💡 কাজ সম্পন্ন করার পর প্রুফ জমা দিতে নিচের **'🚀 প্রুফ সাবমিট করুন'** অপশনে ক্লিক করুন।"
             )
             bot.reply_to(message, task_text, parse_mode="Markdown")
@@ -178,6 +177,9 @@ def register_handlers(bot, FIREBASE_URL):
                 f"⚠️ স্ট্রাইক স্ট্যাটাস: {strike_count} টি"
             )
             bot.reply_to(message, profile_text, parse_mode="Markdown")
+
+        elif text == "🏆 শীর্ষ লিডারবোর্ড":
+            show_top_creators_logic(bot, message)
                 
         elif text == "🔗 ইনভাইট লিংক":
             ref_link = f"https://t.me/{bot.get_me().username}?start={user_id}"
@@ -187,14 +189,14 @@ def register_handlers(bot, FIREBASE_URL):
             )
             bot.reply_to(message, ref_msg, parse_mode="Markdown")
 
-    # ৩. কাজের ক্যাটাগরি সিলেকশন হ্যান্ডলার (ডেইলি লিমিট চেকসহ)
+    # ৩. কাজের ক্যাটাগরি সিলেকশন হ্যান্ডলার
     @bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
     def handle_category_selection(call):
         user_id = call.from_user.id
         category_map = {
             "cat_video": "🎥 ভিডিও এডিটিং",
             "cat_photo": "📸 ছবি এডিটিং",
-            "cat_voice": "🎙 ভয়েস ওভার",
+            "cat_voice": "🎙️ ভয়েস ওভার",
             "cat_share": "🔗 শেয়ারিং প্রুফ"
         }
         cat_key = call.data.replace("cat_", "")
@@ -234,7 +236,7 @@ def register_handlers(bot, FIREBASE_URL):
             parse_mode="Markdown"
         )
 
-    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (অটো-এপ্রুভড উইথ অ্যাডমিন সিকিউরড রিজেক্ট বাটন ও রেটিং)
+    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (ডুপ্লিকেট ফাইল রেস্ট্রিকশন সহ)
     @bot.message_handler(content_types=['photo', 'voice', 'audio', 'document'])
     def handle_media(message):
         user_id = message.from_user.id
@@ -266,8 +268,15 @@ def register_handlers(bot, FIREBASE_URL):
             file_id = message.document.file_id
             file_type = "document"
 
+        # **ডুপ্লিকেট ফাইল রেস্ট্রিকশন চেক**
         submissions_url = f"{FIREBASE_URL}/submissions/{user_id}.json"
+        existing_subs = requests.get(submissions_url).json() or {}
         
+        for sub_id, sub_info in existing_subs.items():
+            if isinstance(sub_info, dict) and sub_info.get('file_id') == file_id:
+                bot.reply_to(message, "⚠️ এই ফাইলটি বা স্ক্রিনশটটি আপনি ইতিপূর্বেই একবার জমা দিয়েছেন! দয়া করে নতুন বা ভিন্ন প্রুফ ফাইল জমা দিন।")
+                return
+
         cat_key_map = {
             "🎥 ভিডিও এডিটিং": ("video_count", 40.0),
             "📸 ছবি এডিটিং": ("photo_count", 20.0),
@@ -277,7 +286,6 @@ def register_handlers(bot, FIREBASE_URL):
         
         count_key, reward_amount = cat_key_map.get(selected_category, ("share_count", 10.0))
 
-        # সাবমিশন ডেটা ফায়ারবেসে সেভ করা
         new_sub_data = {
             'file_id': file_id,
             'file_type': file_type,
@@ -289,7 +297,6 @@ def register_handlers(bot, FIREBASE_URL):
         res = requests.post(submissions_url, json=new_sub_data)
         sub_id = res.json().get('name')
         
-        # অটোমেটিক ব্যালেন্স এবং টাস্ক কাউন্ট যোগ করে দেওয়া
         current_task_bal = float(user_data.get('task_balance', 0.0))
         new_task_bal = current_task_bal + reward_amount
         
@@ -302,11 +309,10 @@ def register_handlers(bot, FIREBASE_URL):
             'daily_tasks': daily_tasks
         })
         
-        bot.reply_to(message, f"✅ আপনার প্রুফ সফলভাবে জমা হয়েছে এবং অ্যাকাউন্টে **৳{reward_amount}** যোগ করা হয়েছে! (নোট: কাজ মানসম্মত না হলে অ্যাডমিন তা বাতিল করলে ব্যালেন্স কর্তন হতে পারে)।", parse_mode="Markdown")
+        bot.reply_to(message, f"✅ আপনার প্রুফ সফলভাবে জমা হয়েছে এবং অ্যাকাউন্টে **৳{reward_amount}** যোগ করা হয়েছে!", parse_mode="Markdown")
 
         try:
             markup = telebot.types.InlineKeyboardMarkup(row_width=1)
-            # চ্যানেলের পোস্টে স্টার রেটিং এবং রিজেক্ট বাটন যুক্ত করা হলো
             markup.add(
                 telebot.types.InlineKeyboardButton("⭐ ১ স্টার", callback_data="rate_1"),
                 telebot.types.InlineKeyboardButton("⭐⭐ ২ স্টার", callback_data="rate_2"),
@@ -320,8 +326,7 @@ def register_handlers(bot, FIREBASE_URL):
                 f"🆔 আইডি: `{user_id}`\n"
                 f"📂 ক্যাটাগরি: {selected_category}\n"
                 f"💵 প্রদানকৃত পেমেন্ট: ৳{reward_amount}\n"
-                f"📁 ফাইলের ধরন: {file_type}\n\n"
-                f"💡 *অন্যান্য ইউজাররা এই কাজে রেটিং দিতে পারবেন। কাজ ভুল বা অসম্পূর্ণ হলে শুধুমাত্র অ্যাডমিনগণ রিজেক্ট করতে পারবেন।*"
+                f"📁 ফাইলের ধরন: {file_type}"
             )
             
             bot.send_message(ADMIN_CHAT_ID, caption, parse_mode="Markdown", reply_markup=markup)
@@ -338,7 +343,6 @@ def register_handlers(bot, FIREBASE_URL):
             old_text = message.text
             
             bot.answer_callback_query(call.id, f"✅ আপনি সফলভাবে {rating_value} স্টার রেটিং প্রদান করেছেন!")
-            
             new_caption = old_text + f"\n\n✨ রেটিং প্রদান করা হয়েছে: {rating_value} স্টার ⭐"
             
             bot.edit_message_text(
@@ -350,12 +354,11 @@ def register_handlers(bot, FIREBASE_URL):
         except Exception as e:
             print(f"Rating error: {e}")
 
-    # ৬. সিকিউরড অটোমেটিক রিজেক্ট ও ব্যালেন্স কর্তন হ্যান্ডলার (শুধুমাত্র নির্দিষ্ট অ্যাডমিনদের জন্য কার্যকর)
+    # ৬. সিকিউরড অটোমেটিক রিজেক্ট ও ব্যালেন্স কর্তন হ্যান্ডলার
     @bot.callback_query_handler(func=lambda call: call.data.startswith("autorej_"))
     def handle_auto_reject(call):
-        # সিকিউরিটি চেক: ক্লিককারী ইউজার অ্যাডমিন লিস্টে আছে কিনা যাচাই করা
         if call.from_user.id not in ADMIN_IDS:
-            bot.answer_callback_query(call.id, "⚠️ আপনার এই কাজটি করার অনুমতি নেই! এটি শুধুমাত্র অ্যাডমিনদের জন্য নির্ধারিত।", show_alert=True)
+            bot.answer_callback_query(call.id, "⚠️ আপনার এই কাজটি করার অনুমতি নেই!", show_alert=True)
             return
 
         try:
@@ -377,11 +380,9 @@ def register_handlers(bot, FIREBASE_URL):
             user_url = f"{FIREBASE_URL}/users/{target_user_id}.json"
             user_data = requests.get(user_url).json() or {}
             
-            # ইউজারের ব্যালেন্স থেকে টাকা মাইনাস করা
             current_task_bal = float(user_data.get('task_balance', 0.0))
             new_task_bal = max(0.0, current_task_bal - reward_amount)
             
-            # ডেইলি টাস্ক কাউন্ট এক কমিয়ে দেওয়া
             daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
             if daily_tasks.get(count_key, 0) > 0:
                 daily_tasks[count_key] -= 1
@@ -391,10 +392,9 @@ def register_handlers(bot, FIREBASE_URL):
                 'daily_tasks': daily_tasks
             })
             
-            # সাবমিশন স্ট্যাটাস আপডেট করা
             requests.patch(sub_url, json={'status': 'rejected'})
             
-            bot.answer_callback_query(call.id, "❌ প্রুফ সফলভাবে রিজেক্ট করা হয়েছে এবং ইউজারের ব্যালেন্স থেকে টাকা কেটে নেওয়া হয়েছে।")
+            bot.answer_callback_query(call.id, "❌ প্রুফ সফলভাবে রিজেক্ট করা হয়েছে।")
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
@@ -402,14 +402,12 @@ def register_handlers(bot, FIREBASE_URL):
                 parse_mode="Markdown"
             )
             
-            # ইউজারকে কারণসহ নোটিফিকেশন পাঠানো
             try:
                 reject_msg = (
                     f"⚠️ **আপনার প্রুফটি বাতিল (Rejected) করা হয়েছে!**\n\n"
                     f"📂 ক্যাটাগরি: {category}\n"
-                    f"❌ কারণ: আপনার জমা দেওয়া কাজটি মানসম্মত হয়নি বা অসম্পূর্ণ ছিল।\n"
-                    f"💵 কর্তনকৃত পরিমাণ: ৳{reward_amount}\n\n"
-                    f"💡 দয়া করে নির্দেশিকা ভালোভাবে পড়ে কাজটি আবার নিখুঁতভাবে সম্পন্ন করে পুনরায় জমা দিন।"
+                    f"❌ কারণ: আপনার জমা দেওয়া কাজটি মানসম্মত হয়নি।\n"
+                    f"💵 কর্তনকৃত পরিমাণ: ৳{reward_amount}"
                 )
                 bot.send_message(target_user_id, reject_msg, parse_mode="Markdown")
             except:
@@ -417,25 +415,20 @@ def register_handlers(bot, FIREBASE_URL):
                 
         except Exception as e:
             print(f"Auto reject error: {e}")
-            bot.answer_callback_query(call.id, "⚠️ একটি ত্রুটি ঘটেছে!", show_alert=True)
 
-    # ৭. সাপ্তাহিক লিডারবোর্ড (রিয়েল ইউজার ও আপ-ডাউনশীল ডামি ইউজারের সমন্বিত টপ ১০ তালিকা)
-    @bot.message_handler(commands=['top10', 'top_posts'])
-    def show_top_creators(message):
+    # ৭. লিডারবোর্ড লজিক ফাংশন
+    def show_top_creators_logic(bot, message):
         try:
             users_url = f"{FIREBASE_URL}/users.json"
             users_res = requests.get(users_url).json() or {}
             
             user_scores = []
-            
-            # ফায়ারবেস থেকে রিয়াল ইউজারদের ডেটা ফেচ করা
             for uid, udata in users_res.items():
                 if isinstance(udata, dict):
                     name = udata.get('first_name', 'User')
                     score = float(udata.get('task_balance', 0.0)) + float(udata.get('referral_balance', 0.0))
                     user_scores.append({'name': name, 'score': score})
             
-            # ডামি ইউজারদের বেস লিস্ট (যাদের পয়েন্ট সামান্য ওঠানামা বা আপ-ডাউন করবে)
             base_dummy_users = [
                 {'name': 'Rakibul Islam', 'base_score': 1150.0},
                 {'name': 'Tanvir Ahmed', 'base_score': 920.0},
@@ -449,15 +442,12 @@ def register_handlers(bot, FIREBASE_URL):
                 {'name': 'Nusrat Jahan', 'base_score': 270.0}
             ]
             
-            # রেন্ডম ওঠানামা (-২০ থেকে +৩০ পয়েন্ট) যোগ করা যাতে রিয়াল ইউজাররা ওভারটেক করতে পারে
             for dummy in base_dummy_users:
                 fluctuation = random.randint(-20, 30)
                 current_dummy_score = max(50.0, dummy['base_score'] + fluctuation)
-                
                 if not any(u['name'] == dummy['name'] for u in user_scores):
                     user_scores.append({'name': dummy['name'], 'score': current_dummy_score})
 
-            # স্কোর অনুযায়ী সর্ট করা
             user_scores = sorted(user_scores, key=lambda x: x['score'], reverse=True)
             
             top_10_text = (
@@ -470,10 +460,12 @@ def register_handlers(bot, FIREBASE_URL):
                 formatted_score = round(user['score'], 1)
                 top_10_text += f"{medal} **{user['name']}** — ৳{formatted_score} পয়েন্ট\n"
             
-            top_10_text += "\n💡 *টিপস:* বেশি বেশি প্রজেক্ট সম্পন্ন করুন এবং রেফারেল বাড়িয়ে আপনার পজিশন শীর্ষে নিয়ে যান!"
-            
             bot.reply_to(message, top_10_text, parse_mode="Markdown")
             
         except Exception as e:
             print(f"Top 10 error: {e}")
             bot.reply_to(message, "⚠️ দুঃখিত, লিডারবোর্ড ডেটা লোড করতে সাময়িকভাবে সমস্যা হয়েছে।")
+
+    @bot.message_handler(commands=['top10', 'top_posts'])
+    def show_top_creators(message):
+        show_top_creators_logic(bot, message)
