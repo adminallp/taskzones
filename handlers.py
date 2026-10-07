@@ -114,28 +114,24 @@ def register_handlers(bot, FIREBASE_URL):
             bot.reply_to(message, "⚠️ অনুগ্রহ করে প্রথমে /start কমান্ড টাইপ করে রেজিস্ট্রেশন প্রক্রিয়া সম্পন্ন করুন!")
             return
 
-        config_url = f"{FIREBASE_URL}/tasks_config.json"
-        config_data = requests.get(config_url).json() or {}
-
-        video_script = config_data.get('video', {}).get('script', 'নমুনা ভিডিও বা স্ক্রিপ্ট শীঘ্রই আপডেট করা হবে।')
-        photo_script = config_data.get('photo', {}).get('script', 'ছবি বা লোগোর রিকোয়ারমেন্ট শীঘ্রই আপডেট করা হবে।')
-        voice_script = config_data.get('voice', {}).get('script', 'ভয়েস ওভারের জন্য নির্ধারিত স্ক্রিপ্ট এখানে থাকবে।')
-        share_link = config_data.get('share', {}).get('link', 'শেয়ার করার জন্য নির্ধারিত লিংকটি এখানে থাকবে।')
-
         if text == "💼 চলমান প্রজেক্টসমূহ":
-            task_text = (
-                "🎯 **সক্রিয় প্রজেক্ট, স্ক্রিপ্ট ও কাজের বিবরণসমূহ:**\n\n"
-                f"🎥 **১. ভিডিও এডিটিং (রেট: ৳৪০ | দৈনিক সর্বোচ্চ: ২টি)**\n"
-                f"   • *নির্দেশনা/স্ক্রিপ্ট:* {video_script}\n\n"
-                f"📸 **২. ছবি এডিটিং (রেট: ৳২০ | দৈনিক সর্বোচ্চ: ৩টি)**\n"
-                f"   • *নির্দেশনা:* {photo_script}\n\n"
-                f"🎙️ **৩. ভয়েস ওভার / অডিও (রেট: ৳১৫ | দৈনিক সর্বোচ্চ: ৩টি)**\n"
-                f"   • *স্ক্রিপ্ট:* {voice_script}\n\n"
-                f"🔗 **৪. লিংক বা ভিডিও শেয়ারিং (রেট: ৳১০ | দৈনিক সর্বোচ্চ: ৫টি)**\n"
-                f"   • *শেয়ার লিংক:* {share_link}\n\n"
-                "💡 কাজ সম্পন্ন করার পর প্রুফ জমা দিতে নিচের **'🚀 প্রুফ সাবমিট করুন'** অপশনে ক্লিক করুন।"
+            project_text = (
+                "🌟 **Task Zone - গ্লোবাল মাইক্রো-টাস্ক প্ল্যাটফর্ম**\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                "🎯 **সক্রিয় প্রজেক্টসমূহের তালিকা:**\n"
+                "🎬 ১. ভিডিও এডিটিং প্রজেক্ট (রেট: ৳৪০ | দৈনিক সীমা: ২টি)\n"
+                "🎨 ২. ছবি এডিটিং প্রজেক্ট (রেট: ৳২০ | দৈনিক সীমা: ৩টি)\n"
+                "🎙️ ৩. ভয়েস ওভার প্রজেক্ট (রেট: ৳১৫ | দৈনিক সীমা: ৩টি)\n"
+                "🔗 ৪. শেয়ারিং প্রজেক্ট (রেট: ৳১০ | দৈনিক সীমা: ৫টি)\n\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "🤝 **স্ট্র্যাটেজিক ব্র্যান্ড পার্টনার ও কোলাবোরেটরগণ:**\n"
+                "🌐 World Vision, Green Dot, Samsunia, Tuli Group & Enterprise.\n\n"
+                "💳 **অফিসিয়াল পেমেন্ট পার্টনারগণ:**\n"
+                "🔸 বিকাশ (bKash) | 🔸 নগদ (Nagad) | 🔸 রকেট (Rocket) | 🔸 উপায় (Upay)\n\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "💡 কাজ শুরু করতে বা প্রুফ জমা দিতে নিচের **'🚀 প্রুফ সাবমিট করুন'** বাটনে ক্লিক করুন।"
             )
-            bot.reply_to(message, task_text, parse_mode="Markdown")
+            bot.reply_to(message, project_text, parse_mode="Markdown")
             
         elif text == "🚀 প্রুফ সাবমিট করুন":
             markup = telebot.types.InlineKeyboardMarkup(row_width=2)
@@ -145,7 +141,7 @@ def register_handlers(bot, FIREBASE_URL):
                 telebot.types.InlineKeyboardButton("🎙️ ভয়েস ওভার (৳১৫)", callback_data="cat_voice"),
                 telebot.types.InlineKeyboardButton("🔗 শেয়ারিং প্রুফ (৳১০)", callback_data="cat_share")
             )
-            bot.reply_to(message, "📂 আপনি কোন ক্যাটাগরির কাজ জমা দিতে চান? নিচের বাটন থেকে যথাযথ ক্যাটাগরি সিলেক্ট করুন:", reply_markup=markup)
+            bot.reply_to(message, "📂 আপনি কোন ক্যাটাগরির কাজ জমা দিতে চান? যথাযথ ক্যাটাগরি সিলেক্ট করলে কাজের স্ক্রিপ্ট ও নমুনা লিংক দেখতে পাবেন:", reply_markup=markup)
             
         elif text == "💰 আমার আর্নিংস":
             t_bal = float(user_data.get('task_balance', 0.0))
@@ -196,7 +192,7 @@ def register_handlers(bot, FIREBASE_URL):
             support_text = (
                 "📞 **সাহায্য ও সাপোর্ট সেন্টার:**\n\n"
                 "আপনার কাজে কোনো সমস্যা হলে বা অ্যাকাউন্ট সম্পর্কিত কোনো জিজ্ঞাসা থাকলে সরাসরি আমাদের সাপোর্ট আইডিতে যোগাযোগ করুন:\n\n"
-                "👤 সাপোর্ট অ্যাডমিন: @\n"
+                "👤 সাপোর্ট অ্যাডমিন: @asnahidns\n"
                 "📢 অফিসিয়াল চ্যানেল: @taskzones\n\n"
                 "💡 আমাদের টিম আপনাকে সহযোগিতার জন্য সবসময় প্রস্তুত রয়েছে!"
             )
@@ -210,18 +206,25 @@ def register_handlers(bot, FIREBASE_URL):
             )
             bot.reply_to(message, ref_msg, parse_mode="Markdown")
 
-    # ৩. কাজের ক্যাটাগরি সিলেকশন হ্যান্ডলার
+    # ৩. কাজের ক্যাটাগরি সিলেকশন ও নির্দিষ্ট স্ক্রিপ্ট/স্যাম্পল দেখানোর হ্যান্ডলার
     @bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
     def handle_category_selection(call):
         user_id = call.from_user.id
-        category_map = {
-            "cat_video": "🎥 ভিডিও এডিটিং",
-            "cat_photo": "📸 ছবি এডিটিং",
-            "cat_voice": "🎙️ ভয়েস ওভার",
-            "cat_share": "🔗 শেয়ারিং প্রুফ"
-        }
         cat_key = call.data.replace("cat_", "")
-        selected_cat = category_map.get(call.data, "সাধারণ প্রুফ")
+        
+        category_map = {
+            "video": "🎥 ভিডিও এডিটিং",
+            "photo": "📸 ছবি এডিটিং",
+            "voice": "🎙️ ভয়েস ওভার",
+            "share": "🔗 শেয়ারিং প্রুফ"
+        }
+        selected_cat = category_map.get(cat_key, "সাধারণ প্রুফ")
+        
+        config_url = f"{FIREBASE_URL}/tasks_config.json"
+        config_data = requests.get(config_url).json() or {}
+        
+        script = config_data.get(cat_key, {}).get('script', 'নির্দেশনা শীঘ্রই আপডেট করা হবে।')
+        sample = config_data.get(cat_key, {}).get('sample', config_data.get('share', {}).get('link', '#'))
         
         user_url = f"{FIREBASE_URL}/users/{user_id}.json"
         user_data = requests.get(user_url).json() or {}
@@ -238,7 +241,7 @@ def register_handlers(bot, FIREBASE_URL):
         current_count = daily_tasks.get(f"{cat_key}_count", 0)
         
         if current_count >= max_limit:
-            bot.answer_callback_query(call.id, f"⚠️ দুঃখিত! আজকের জন্য আপনার এই টাস্কের লিমিট শেষ।", show_alert=True)
+            bot.answer_callback_query(call.id, "⚠️ দুঃখিত! আজকের জন্য আপনার এই টাস্কের লিমিট শেষ।", show_alert=True)
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
@@ -250,14 +253,24 @@ def register_handlers(bot, FIREBASE_URL):
         requests.patch(user_url, json={'selected_category': selected_cat})
         
         bot.answer_callback_query(call.id, f"✅ সফলভাবে নির্বাচিত হয়েছে: {selected_cat}")
+        
+        instruction_text = (
+            f"✅ আপনি নির্বাচিত করেছেন: **{selected_cat}**\n\n"
+            f"📋 **কাজের স্ক্রিপ্ট ও নির্দেশনা:**\n{script}\n\n"
+            f"🔗 **নমুনা লিংক:** [এখানে ক্লিক করে স্যাম্পল দেখুন]({sample})\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "📥 **নির্দেশনা অনুযায়ী কাজ সম্পন্ন করে সরাসরি আপনার প্রুফ ফাইল বা স্ক্রিনশট এই চ্যাটে পাঠিয়ে দিন!**"
+        )
+        
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=f"✅ আপনি নির্বাচিত করেছেন: **{selected_cat}**\n\nএখন আপনার প্রুফ বা মিডিয়া ফাইলটি সরাসরি এই চ্যাটে পাঠিয়ে দিন।",
-            parse_mode="Markdown"
+            text=instruction_text,
+            parse_mode="Markdown",
+            disable_web_page_preview=True
         )
 
-    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (সুরক্ষিত ডুপ্লিকেট ফাইল রেস্ট্রিকশন সহ)
+    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (সুরক্ষিত ডুপ্লিকেট ফাইল রেস্ট্রিকশন ও লিমিট সহ)
     @bot.message_handler(content_types=['photo', 'voice', 'audio', 'document'])
     def handle_media(message):
         user_id = message.from_user.id
