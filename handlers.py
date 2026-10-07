@@ -95,12 +95,14 @@ def register_handlers(bot, FIREBASE_URL):
             telebot.types.KeyboardButton("💰 আমার আর্নিংস"),
             telebot.types.KeyboardButton("👤 পারসোনাল ড্যাশবোর্ড"),
             telebot.types.KeyboardButton("🏆 শীর্ষ লিডারবোর্ড"),
+            telebot.types.KeyboardButton("💳 উইথড্র করুন"),
+            telebot.types.KeyboardButton("📞 হেল্প ও সাপোর্ট"),
             telebot.types.KeyboardButton("🔗 ইনভাইট লিংক")
         )
         bot.send_message(chat_id, "✨ নিচের প্রিমিয়াম অপশনগুলো থেকে আপনার কাঙ্ক্ষিত সেবাটি বেছে নিন:", reply_markup=markup)
 
     # ২. মেনু অপশন হ্যান্ডলার
-    @bot.message_handler(func=lambda message: message.text in ["💼 চলমান প্রজেক্টসমূহ", "🚀 প্রুফ সাবমিট করুন", "💰 আমার আর্নিংস", "👤 পারসোনাল ড্যাশবোর্ড", "🏆 শীর্ষ লিডারবোর্ড", "🔗 ইনভাইট লিংক"])
+    @bot.message_handler(func=lambda message: message.text in ["💼 চলমান প্রজেক্টসমূহ", "🚀 প্রুফ সাবমিট করুন", "💰 আমার আর্নিংস", "👤 পারসোনাল ড্যাশবোর্ড", "🏆 শীর্ষ লিডারবোর্ড", "💳 উইথড্র করুন", "📞 হেল্প ও সাপোর্ট", "🔗 ইনভাইট লিংক"])
     def handle_menu_options(message):
         user_id = message.from_user.id
         text = message.text
@@ -108,7 +110,7 @@ def register_handlers(bot, FIREBASE_URL):
         user_url = f"{FIREBASE_URL}/users/{user_id}.json"
         user_data = requests.get(user_url).json()
         
-        if not user_data and text != "🏆 শীর্ষ লিডারবোর্ড":
+        if not user_data and text not in ["🏆 শীর্ষ লিডারবোর্ড", "💳 উইথড্র করুন", "📞 হেল্প ও সাপোর্ট"]:
             bot.reply_to(message, "⚠️ অনুগ্রহ করে প্রথমে /start কমান্ড টাইপ করে রেজিস্ট্রেশন প্রক্রিয়া সম্পন্ন করুন!")
             return
 
@@ -180,6 +182,25 @@ def register_handlers(bot, FIREBASE_URL):
 
         elif text == "🏆 শীর্ষ লিডারবোর্ড":
             show_top_creators_logic(bot, message)
+
+        elif text == "💳 উইথড্র করুন":
+            withdraw_notice = (
+                "💳 **উইথড্র বা পেমেন্ট সিস্টেম সম্পর্কিত নোটিশ:**\n\n"
+                "⚠️ প্রিয় ইউজার, আমাদের মূল কোম্পানি ও অফিসিয়াল প্ল্যাটফর্মের কার্যক্রম খুব শীঘ্রই আনুষ্ঠানিকভাবে পূর্ণাঙ্গরূপে চালু হতে যাচ্ছে।\n\n"
+                "📅 **উইথড্র চালুর সম্ভাব্য সময়:** আগামী **২০২৭ সালের ১ জানুয়ারি** থেকে অথবা মূল প্রজেক্টের চূড়ান্ত লঞ্চিংয়ের সাথে সাথেই উইথড্র সিস্টেম সবার জন্য উন্মুক্ত করা হবে।\n\n"
+                "💡 ততক্ষণে নিয়মিত টাস্ক সম্পন্ন করুন, টিম বড় করুন এবং আপনার প্রজেক্ট ব্যালেন্স ও রেফারেল পয়েন্ট বাড়াতে থাকুন!"
+            )
+            bot.reply_to(message, withdraw_notice, parse_mode="Markdown")
+
+        elif text == "📞 হেল্প ও সাপোর্ট":
+            support_text = (
+                "📞 **সাহায্য ও সাপোর্ট সেন্টার:**\n\n"
+                "আপনার কাজে কোনো সমস্যা হলে বা অ্যাকাউন্ট সম্পর্কিত কোনো জিজ্ঞাসা থাকলে সরাসরি আমাদের সাপোর্ট আইডিতে যোগাযোগ করুন:\n\n"
+                "👤 সাপোর্ট অ্যাডমিন: @asnahidns\n"
+                "📢 অফিসিয়াল চ্যানেল: @taskzones\n\n"
+                "💡 আমাদের টিম আপনাকে সহযোগিতার জন্য সবসময় প্রস্তুত রয়েছে!"
+            )
+            bot.reply_to(message, support_text, parse_mode="Markdown")
                 
         elif text == "🔗 ইনভাইট লিংক":
             ref_link = f"https://t.me/{bot.get_me().username}?start={user_id}"
@@ -236,103 +257,112 @@ def register_handlers(bot, FIREBASE_URL):
             parse_mode="Markdown"
         )
 
-    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (ডুপ্লিকেট ফাইল রেস্ট্রিকশন সহ)
+    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (সুরক্ষিত ডুপ্লিকেট ফাইল রেস্ট্রিকশন সহ)
     @bot.message_handler(content_types=['photo', 'voice', 'audio', 'document'])
     def handle_media(message):
         user_id = message.from_user.id
-        user_url = f"{FIREBASE_URL}/users/{user_id}.json"
-        user_data = requests.get(user_url).json()
         
-        if not user_data:
-            bot.reply_to(message, "⚠️ প্রুফ জমা দেওয়ার পূর্বে অনুগ্রহ করে /start লিখে রেজিস্ট্রেশন সম্পন্ন করুন।")
-            return
-
-        selected_category = user_data.get('selected_category')
-        if not selected_category:
-            bot.reply_to(message, "⚠️ অনুগ্রহ করে প্রথমে মেনু থেকে **'🚀 প্রুফ সাবমিট করুন'** এ প্রবেশ করে কাজের ক্যাটাগরি নির্ধারণ করুন!")
-            return
-
-        file_id = None
-        file_type = ""
-        
-        if message.photo:
-            file_id = message.photo[-1].file_id
-            file_type = "photo"
-        elif message.voice:
-            file_id = message.voice.file_id
-            file_type = "voice"
-        elif message.audio:
-            file_id = message.audio.file_id
-            file_type = "audio"
-        elif message.document:
-            file_id = message.document.file_id
-            file_type = "document"
-
-        # **ডুপ্লিকেট ফাইল রেস্ট্রিকশন চেক**
-        submissions_url = f"{FIREBASE_URL}/submissions/{user_id}.json"
-        existing_subs = requests.get(submissions_url).json() or {}
-        
-        for sub_id, sub_info in existing_subs.items():
-            if isinstance(sub_info, dict) and sub_info.get('file_id') == file_id:
-                bot.reply_to(message, "⚠️ এই ফাইলটি বা স্ক্রিনশটটি আপনি ইতিপূর্বেই একবার জমা দিয়েছেন! দয়া করে নতুন বা ভিন্ন প্রুফ ফাইল জমা দিন।")
+        try:
+            user_url = f"{FIREBASE_URL}/users/{user_id}.json"
+            user_res = requests.get(user_url, timeout=10)
+            user_data = user_res.json() if user_res.status_code == 200 else None
+            
+            if not user_data:
+                bot.reply_to(message, "⚠️ প্রুফ জমা দেওয়ার পূর্বে অনুগ্রহ করে /start লিখে রেজিস্ট্রেশন সম্পন্ন করুন।")
                 return
 
-        cat_key_map = {
-            "🎥 ভিডিও এডিটিং": ("video_count", 40.0),
-            "📸 ছবি এডিটিং": ("photo_count", 20.0),
-            "🎙️ ভয়েস ওভার": ("voice_count", 15.0),
-            "🔗 শেয়ারিং প্রুফ": ("share_count", 10.0)
-        }
-        
-        count_key, reward_amount = cat_key_map.get(selected_category, ("share_count", 10.0))
+            selected_category = user_data.get('selected_category')
+            if not selected_category:
+                bot.reply_to(message, "⚠️ অনুগ্রহ করে প্রথমে মেনু থেকে **'🚀 প্রুফ সাবমিট করুন'** এ প্রবেশ করে কাজের ক্যাটাগরি নির্ধারণ করুন!")
+                return
 
-        new_sub_data = {
-            'file_id': file_id,
-            'file_type': file_type,
-            'category': selected_category,
-            'reward': reward_amount,
-            'count_key': count_key,
-            'status': 'active'
-        }
-        res = requests.post(submissions_url, json=new_sub_data)
-        sub_id = res.json().get('name')
-        
-        current_task_bal = float(user_data.get('task_balance', 0.0))
-        new_task_bal = current_task_bal + reward_amount
-        
-        daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
-        daily_tasks[count_key] = daily_tasks.get(count_key, 0) + 1
-        
-        requests.patch(user_url, json={
-            'task_balance': new_task_bal,
-            'selected_category': None,
-            'daily_tasks': daily_tasks
-        })
-        
-        bot.reply_to(message, f"✅ আপনার প্রুফ সফলভাবে জমা হয়েছে এবং অ্যাকাউন্টে **৳{reward_amount}** যোগ করা হয়েছে!", parse_mode="Markdown")
+            file_id = None
+            file_type = ""
+            
+            if message.photo:
+                file_id = message.photo[-1].file_id
+                file_type = "photo"
+            elif message.voice:
+                file_id = message.voice.file_id
+                file_type = "voice"
+            elif message.audio:
+                file_id = message.audio.file_id
+                file_type = "audio"
+            elif message.document:
+                file_id = message.document.file_id
+                file_type = "document"
 
-        try:
-            markup = telebot.types.InlineKeyboardMarkup(row_width=1)
-            markup.add(
-                telebot.types.InlineKeyboardButton("⭐ ১ স্টার", callback_data="rate_1"),
-                telebot.types.InlineKeyboardButton("⭐⭐ ২ স্টার", callback_data="rate_2"),
-                telebot.types.InlineKeyboardButton("⭐⭐⭐ ৩ স্টার", callback_data="rate_3"),
-                telebot.types.InlineKeyboardButton("❌ কাজ মানসম্মত নয় - রিজেক্ট ও ব্যালেন্স কাটুন", callback_data=f"autorej_{user_id}_{sub_id}")
-            )
+            # **ডুপ্লিকেট ফাইল রেস্ট্রিকশন চেক**
+            submissions_url = f"{FIREBASE_URL}/submissions/{user_id}.json"
+            sub_res = requests.get(submissions_url, timeout=10)
+            existing_subs = sub_res.json() if sub_res.status_code == 200 else {}
             
-            caption = (
-                f"📥 **নতুন টাস্ক সাবমিশন (পাবলিক ফিড):**\n\n"
-                f"👤 নাম: {user_data.get('first_name')}\n"
-                f"🆔 আইডি: `{user_id}`\n"
-                f"📂 ক্যাটাগরি: {selected_category}\n"
-                f"💵 প্রদানকৃত পেমেন্ট: ৳{reward_amount}\n"
-                f"📁 ফাইলের ধরন: {file_type}"
-            )
+            if isinstance(existing_subs, dict):
+                for sub_id, sub_info in existing_subs.items():
+                    if isinstance(sub_info, dict) and sub_info.get('file_id') == file_id:
+                        bot.reply_to(message, "⚠️ এই ফাইলটি বা স্ক্রিনশটটি আপনি ইতিপূর্বেই একবার জমা দিয়েছেন! দয়া করে নতুন বা ভিন্ন প্রুফ ফাইল জমা দিন।")
+                        return
+
+            cat_key_map = {
+                "🎥 ভিডিও এডিটিং": ("video_count", 40.0),
+                "📸 ছবি এডিটিং": ("photo_count", 20.0),
+                "🎙️ ভয়েস ওভার": ("voice_count", 15.0),
+                "🔗 শেয়ারিং প্রুফ": ("share_count", 10.0)
+            }
             
-            bot.send_message(ADMIN_CHAT_ID, caption, parse_mode="Markdown", reply_markup=markup)
-            bot.forward_message(ADMIN_CHAT_ID, message.chat.id, message.message_id)
+            count_key, reward_amount = cat_key_map.get(selected_category, ("share_count", 10.0))
+
+            new_sub_data = {
+                'file_id': file_id,
+                'file_type': file_type,
+                'category': selected_category,
+                'reward': reward_amount,
+                'count_key': count_key,
+                'status': 'active'
+            }
+            post_res = requests.post(submissions_url, json=new_sub_data, timeout=10)
+            sub_id = post_res.json().get('name') if post_res.status_code == 200 else "temp_id"
+            
+            current_task_bal = float(user_data.get('task_balance', 0.0))
+            new_task_bal = current_task_bal + reward_amount
+            
+            daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
+            daily_tasks[count_key] = daily_tasks.get(count_key, 0) + 1
+            
+            requests.patch(user_url, json={
+                'task_balance': new_task_bal,
+                'selected_category': None,
+                'daily_tasks': daily_tasks
+            }, timeout=10)
+            
+            bot.reply_to(message, f"✅ আপনার প্রুফ সফলভাবে জমা হয়েছে এবং অ্যাকাউন্টে **৳{reward_amount}** যোগ করা হয়েছে!", parse_mode="Markdown")
+
+            try:
+                markup = telebot.types.InlineKeyboardMarkup(row_width=1)
+                markup.add(
+                    telebot.types.InlineKeyboardButton("⭐ ১ স্টার", callback_data="rate_1"),
+                    telebot.types.InlineKeyboardButton("⭐⭐ ২ স্টার", callback_data="rate_2"),
+                    telebot.types.InlineKeyboardButton("⭐⭐⭐ ৩ স্টার", callback_data="rate_3"),
+                    telebot.types.InlineKeyboardButton("❌ কাজ মানসম্মত নয় - রিজেক্ট ও ব্যালেন্স কাটুন", callback_data=f"autorej_{user_id}_{sub_id}")
+                )
+                
+                caption = (
+                    f"📥 **নতুন টাস্ক সাবমিশন (পাবলিক ফিড):**\n\n"
+                    f"👤 নাম: {user_data.get('first_name')}\n"
+                    f"🆔 আইডি: `{user_id}`\n"
+                    f"📂 ক্যাটাগরি: {selected_category}\n"
+                    f"💵 প্রদানকৃত পেমেন্ট: ৳{reward_amount}\n"
+                    f"📁 ফাইলের ধরন: {file_type}"
+                )
+                
+                bot.send_message(ADMIN_CHAT_ID, caption, parse_mode="Markdown", reply_markup=markup)
+                bot.forward_message(ADMIN_CHAT_ID, message.chat.id, message.message_id)
+            except Exception as e:
+                print(f"Channel forward error: {e}")
+
         except Exception as e:
-            print(f"Channel forward error: {e}")
+            print(f"Media handling error: {e}")
+            bot.reply_to(message, "⚠️ প্রুফ জমা দেওয়ার সময় একটি প্রযুক্তিগত সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।")
 
     # ৫. স্টার রেটিং বাটন হ্যান্ডলার
     @bot.callback_query_handler(func=lambda call: call.data.startswith("rate_"))
@@ -416,7 +446,36 @@ def register_handlers(bot, FIREBASE_URL):
         except Exception as e:
             print(f"Auto reject error: {e}")
 
-    # ৭. লিডারবোর্ড লজিক ফাংশন
+    # ৭. অ্যাডমিন ব্রডকাস্ট কমান্ড (সকল ইউজারের কাছে নোটিশ পাঠানোর জন্য)
+    @bot.message_handler(commands=['broadcast'])
+    def broadcast_message(message):
+        if message.from_user.id not in ADMIN_IDS:
+            bot.reply_to(message, "⚠️ এই কমান্ডটি শুধুমাত্র অ্যাডমিনদের জন্য!")
+            return
+
+        parts = message.text.split(maxsplit=1)
+        if len(parts) < 2:
+            bot.reply_to(message, "⚠️ দয়া করে ব্রডকাস্ট মেসেজটি লিখে দিন। যেমন: /broadcast আপনার নোটিশ এখানে লিখুন")
+            return
+
+        broadcast_text = f"📢 **বিশেষ ঘোষণা / নোটিশ:**\n\n{parts[1]}"
+        
+        users_url = f"{FIREBASE_URL}/users.json"
+        users_res = requests.get(users_url).json() or {}
+
+        success_count = 0
+        fail_count = 0
+
+        for uid in users_res.keys():
+            try:
+                bot.send_message(uid, broadcast_text, parse_mode="Markdown")
+                success_count += 1
+            except:
+                fail_count += 1
+
+        bot.reply_to(message, f"✅ ব্রডকাস্ট সম্পন্ন!\n\n📤 সফলভাবে প্রেরিত: {success_count} জন\n❌ ব্যর্থ: {fail_count} জন")
+
+    # ৮. লিডারবোর্ড লজিক ফাংশন
     def show_top_creators_logic(bot, message):
         try:
             users_url = f"{FIREBASE_URL}/users.json"
