@@ -201,7 +201,7 @@ def register_handlers(bot, FIREBASE_URL):
             support_text = (
                 "📞 **সাহায্য ও সাপোর্ট সেন্টার:**\n\n"
                 "আপনার কাজে কোনো সমস্যা হলে বা অ্যাকাউন্ট সম্পর্কিত কোনো জিজ্ঞাসা থাকলে সরাসরি আমাদের সাপোর্ট আইডিতে যোগাযোগ করুন:\n\n"
-                "👤 সাপোর্ট অ্যাডমিন: @asnahidns\n"
+                "👤 সাপোর্ট অ্যাডমিন: @taskzoneofficial\n"
                 "📢 অফিসিয়াল চ্যানেল: @taskzones\n\n"
                 "💡 আমাদের টিম আপনাকে সহযোগিতার জন্য সবসময় প্রস্তুত রয়েছে!"
             )
@@ -533,13 +533,13 @@ def register_handlers(bot, FIREBASE_URL):
             
             top_10_text = (
                 "🏆 **Task Zone - সাপ্তাহিক সেরা ১০ পারফর্মার লিডারবোর্ড** 🏆\n\n"
-                "✨ নিয়মিত কাজ করুন, পয়েন্ট বাড়ান এবং লিডারবোর্ডের শীর্ষে উঠে জিতে নিন আকর্ষণীয় পুরস্কার!\n\n"
+                "✨ নিয়মিত কাজ করুন, ব্যালেন্স বাড়ান এবং লিডারবোর্ডের শীর্ষে উঠে জিতে নিন আকর্ষণীয় পুরস্কার!\n\n"
             )
             
             for index, user in enumerate(user_scores[:10], start=1):
                 medal = "🥇" if index == 1 else "🥈" if index == 2 else "🥉" if index == 3 else f"{index}."
                 formatted_score = round(user['score'], 1)
-                top_10_text += f"{medal} **{user['name']}** — ৳{formatted_score} পয়েন্ট\n"
+                top_10_text += f"{medal} **{user['name']}** — ৳{formatted_score} \n"
             
             bot.reply_to(message, top_10_text, parse_mode="Markdown")
             
