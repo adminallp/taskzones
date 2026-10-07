@@ -9,6 +9,12 @@ TOKEN = '8681169433:AAFtdmBgqZmnZjFFfzj5eioAy-OzeGhZSwQ'
 bot = telebot.TeleBot(TOKEN)
 FIREBASE_URL = "https://taskzone365-default-rtdb.firebaseio.com/"
 
+# পূর্বের ওয়েবহুক থাকলে তা রিমোভ বা ডিলিট করে দেওয়া (কনফ্লিক্ট দূর করার জন্য)
+try:
+    bot.remove_webhook()
+except Exception as e:
+    print(f"Webhook remove error: {e}")
+
 # হ্যান্ডলার রেজিস্টার করা
 register_handlers(bot, FIREBASE_URL)
 
