@@ -2,6 +2,7 @@ import json
 import telebot
 import requests
 import random
+from datetime import datetime
 
 ADMIN_CHAT_ID = "@taskzones" 
 
@@ -24,6 +25,8 @@ def register_handlers(bot, FIREBASE_URL):
         res = requests.get(user_url)
         user_data = res.json()
         
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        
         if not user_data:
             if not referred_by:
                 bot.reply_to(message, "⚠️ দুঃখিত! সিস্টেমে রেজিস্ট্রেশন সম্পন্ন করতে হলে অবশ্যই কোনো একটি বৈধ রেফারেল লিংক ব্যবহার করতে হবে। সঠিক রেফারেল লিংক দিয়ে পুনরায় চেষ্টা করুন।")
@@ -39,6 +42,7 @@ def register_handlers(bot, FIREBASE_URL):
                 'team_members': [],
                 'strike': 0,
                 'selected_category': None,
+                'last_task_date': today_date,
                 'daily_tasks': {
                     'video_count': 0,
                     'photo_count': 0,
@@ -83,6 +87,13 @@ def register_handlers(bot, FIREBASE_URL):
             
             bot.reply_to(message, f"🎉 অভিনন্দন, {first_name}! সফলভাবে রেফারেল যাচাইপূর্বক আপনার রেজিস্ট্রেশন সম্পন্ন হয়েছে।")
         else:
+            # পুরানো ইউজারের ক্ষেত্রে তারিখ চেক করে দৈনিক কাউন্ট আপডেট করা
+            last_date = user_data.get('last_task_date')
+            if last_date != today_date:
+                requests.patch(user_url, json={
+                    'last_task_date': today_date,
+                    'daily_tasks': {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0}
+                })
             bot.reply_to(message, f"স্বাগতম ব্যাক, {first_name}! আপনি ইতিমধ্যেই আমাদের সিস্টেমে রেজিস্টার্ড আছেন।")
 
         show_main_menu(bot, message.chat.id)
@@ -200,12 +211,12 @@ def register_handlers(bot, FIREBASE_URL):
         elif text == "📞 হেল্প ও সাপোর্ট":
             support_text = (
                 "📞 **সাহায্য ও সাপোর্ট সেন্টার:**\n\n"
-                "আপনার কাজে কোনো সমস্যা হলে বা অ্যাকাউন্ট সম্পর্কিত কোনো জিজ্ঞাসা থাকলে সরাসরি আমাদের সাপোর্ট আইডিতে যোগাযোগ করুন:\n\n"
-                "👤 সাপোর্ট অ্যাডমিন: @taskzoneofficial\n"
+                "আপনার কাজে কোনো সমস্যা হলে বা অ্যাকাউন্ট সম্পর্কিত কোনো জিজ্ঞাসা থাকলে আমাদের অফিশিয়াল সাপোর্ট গ্রুপে মেসেজ করুন:\n\n"
+                "💬 সাপোর্ট গ্রুপ: [Task Zone - Support Center](https://t.me/taskzoneofficial)\n"
                 "📢 অফিসিয়াল চ্যানেল: @taskzones\n\n"
-                "💡 আমাদের টিম আপনাকে সহযোগিতার জন্য সবসময় প্রস্তুত রয়েছে!"
+                "💡 আমাদের টিম বা টিম লিডাররা আপনাকে সহযোগিতার জন্য সবসময় প্রস্তুত রয়েছে!"
             )
-            bot.reply_to(message, support_text, parse_mode="Markdown")
+            bot.reply_to(message, support_text, parse_mode="Markdown", disable_web_page_preview=True)
                 
         elif text == "🔗 ইনভাইট লিংক":
             ref_link = f"https://t.me/{bot.get_me().username}?start={user_id}"
@@ -215,7 +226,7 @@ def register_handlers(bot, FIREBASE_URL):
             )
             bot.reply_to(message, ref_msg, parse_mode="Markdown")
 
-    # ৩. কাজের ক্যাটাগরি সিলেকশন ও নির্দিষ্ট স্ক্রিপ্ট/স্যাম্পল দেখানোর হ্যান্ডলার
+    # ৩. কাজের ক্যাটাগরি সিলেকশন ও নির্দিষ্ট স্ক্রিপ্ট/স্যাম্পল দেখানোর হ্যান্ডলার (দৈনিক রিসেট চেক সহ)
     @bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
     def handle_category_selection(call):
         user_id = call.from_user.id
@@ -229,15 +240,24 @@ def register_handlers(bot, FIREBASE_URL):
         }
         selected_cat = category_map.get(cat_key, "সাধারণ প্রুফ")
         
+        user_url = f"{FIREBASE_URL}/users/{user_id}.json"
+        user_data = requests.get(user_url).json() or {}
+        
+        # দৈনিক রিসেট চেক
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        last_date = user_data.get('last_task_date')
+        
+        if last_date != today_date:
+            daily_tasks = {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0}
+            requests.patch(user_url, json={'last_task_date': today_date, 'daily_tasks': daily_tasks})
+        else:
+            daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
+        
         config_url = f"{FIREBASE_URL}/tasks_config.json"
         config_data = requests.get(config_url).json() or {}
         
         script = config_data.get(cat_key, {}).get('script', 'নির্দেশনা শীঘ্রই আপডেট করা হবে।')
         sample = config_data.get(cat_key, {}).get('sample', config_data.get('share', {}).get('link', '#'))
-        
-        user_url = f"{FIREBASE_URL}/users/{user_id}.json"
-        user_data = requests.get(user_url).json() or {}
-        daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
         
         limits = {
             "video": (2, "ভিডিও এডিটিং দৈনিক সর্বোচ্চ ২টি করা যাবে।"),
@@ -254,7 +274,7 @@ def register_handlers(bot, FIREBASE_URL):
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
-                text=f"⚠️ **দৈনিক লিমিট পূর্ণ!**\n\n{limit_msg}",
+                text=f"⚠️ **দৈনিক লিমিট পূর্ণ!**\n\n{limit_msg}\n\nকালকে আবার নতুন করে কাজ জমা দিতে পারবেন।",
                 parse_mode="Markdown"
             )
             return
@@ -279,7 +299,7 @@ def register_handlers(bot, FIREBASE_URL):
             disable_web_page_preview=True
         )
 
-    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (সুরক্ষিত ডুপ্লিকেট ফাইল রেস্ট্রিকশন ও লিমিট সহ)
+    # ৪. কাজ বা মিডিয়া সাবমিট হ্যান্ডলার (দৈনিক রিসেট ও ডুপ্লিকেট রেস্ট্রিকশন সহ)
     @bot.message_handler(content_types=['photo', 'voice', 'audio', 'document'])
     def handle_media(message):
         user_id = message.from_user.id
@@ -297,6 +317,17 @@ def register_handlers(bot, FIREBASE_URL):
             if not selected_category:
                 bot.reply_to(message, "⚠️ অনুগ্রহ করে প্রথমে মেনু থেকে **'🚀 প্রুফ সাবমিট করুন'** এ প্রবেশ করে কাজের ক্যাটাগরি নির্ধারণ করুন!")
                 return
+
+            # দৈনিক রিসেট চেক
+            today_date = datetime.now().strftime("%Y-%m-%d")
+            last_date = user_data.get('last_task_date')
+            
+            if last_date != today_date:
+                daily_tasks = {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0}
+                requests.patch(user_url, json={'last_task_date': today_date, 'daily_tasks': daily_tasks})
+                user_data['daily_tasks'] = daily_tasks
+            else:
+                daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
 
             file_id = None
             file_type = ""
@@ -348,7 +379,6 @@ def register_handlers(bot, FIREBASE_URL):
             current_task_bal = float(user_data.get('task_balance', 0.0))
             new_task_bal = current_task_bal + reward_amount
             
-            daily_tasks = user_data.get('daily_tasks', {'video_count': 0, 'photo_count': 0, 'voice_count': 0, 'share_count': 0})
             daily_tasks[count_key] = daily_tasks.get(count_key, 0) + 1
             
             requests.patch(user_url, json={
