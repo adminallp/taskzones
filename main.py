@@ -3,6 +3,7 @@ import telebot
 from flask import Flask
 from threading import Thread
 from handlers import register_handlers
+from dummy_poster import start_dummy_poster  # ডামি পোস্টার ইমপোর্ট করা হলো
 
 # আপনার বোট টোকেন ও ফায়ারবেস URL
 TOKEN = '8681169433:AAFtdmBgqZmnZjFFfzj5eioAy-OzeGhZSwQ'
@@ -17,6 +18,9 @@ except Exception as e:
 
 # হ্যান্ডলার রেজিস্টার করা
 register_handlers(bot, FIREBASE_URL)
+
+# ডামি ইউজারের অটোমেটিক পোস্টার থ্রেড চালু করা
+start_dummy_poster(bot)
 
 # রেন্ডার পোর্টের ফ্লাস্ক সার্ভার (24/7 সচল রাখার জন্য)
 app = Flask('')
