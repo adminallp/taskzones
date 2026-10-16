@@ -11,7 +11,7 @@ ADMIN_IDS = [6638372219]
 
 def register_handlers(bot, FIREBASE_URL):
 
-    # ১. স্টার্ট কমান্ড ও বাধ্যতামূলক থ্রি-লেভেল রেফারেল চেক (মোট ৫০ টাকা কমিশন)
+    # ১. স্টার্ট কমান্ড ও বাধ্যতামূলক থ্রি-লেভেল রেফারেল চেক (ডিফল্ট অ্যাডমিন রেফারেল সহ)
     @bot.message_handler(commands=['start'])
     def send_welcome(message):
         user_id = message.from_user.id
@@ -19,7 +19,8 @@ def register_handlers(bot, FIREBASE_URL):
         username = message.from_user.username or "No Username"
         
         args = message.text.split()
-        referred_by = args[1] if len(args) > 1 else None
+        # যদি রেফারেল কোড না থাকে, তবে স্বয়ংক্রিয়ভাবে আপনার অ্যাডমিন আইডি ধরে নেবে
+        referred_by = args[1] if len(args) > 1 else "6638372219"
         
         user_url = f"{FIREBASE_URL}/users/{user_id}.json"
         res = requests.get(user_url)
@@ -28,10 +29,6 @@ def register_handlers(bot, FIREBASE_URL):
         today_date = datetime.now().strftime("%Y-%m-%d")
         
         if not user_data:
-            if not referred_by:
-                bot.reply_to(message, "⚠️ দুঃখিত! সিস্টেমে রেজিস্ট্রেশন সম্পন্ন করতে হলে অবশ্যই কোনো একটি বৈধ রেফারেল লিংক ব্যবহার করতে হবে। সঠিক রেফারেল লিংক দিয়ে পুনরায় চেষ্টা করুন।")
-                return
-            
             user_data = {
                 'username': username,
                 'first_name': first_name,
